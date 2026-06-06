@@ -1,0 +1,386 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
+import './ApprovalWorkflow.css';
+
+const STEPS = ['Submitted', 'L1 Review', 'L2 Approval', 'Generate PO'];
+
+function StarRating({ value = 0, max = 5 }) {
+  return (
+    <div className="aw-rating">
+      {Array.from({ length: max }, (_, i) => (
+        <span key={i} className={`aw-star${i < Math.floor(value) ? ' aw-star--filled' : ''}`}>★</span>
+      ))}
+      <span className="aw-rating-text">{value}/{max}</span>
+    </div>
+  );
+}
+
+// ── Request List Panel (collapsible groups) ───────────────────────────────
+function RequestList({ list, activeId, onSelect, loading, panelOpen, onTogglePanel }) {
+  const [collapsed, setCollapsed] = useState({ Pending: false, Approved: true, Rejected: true });
+  const toggle = (g) => setCollapsed(prev => ({ ...prev, [g]: !prev[g] }));
+
+  if (loading) return <div className="aw-list-loading">Loading…</div>;
+
+  const groups = {
+    Pending:  list.filter(a => a.status === 'Pending'),
+    Approved: list.filter(a => a.status === 'Approved'),
+    Rejected: list.filter(a => a.status === 'Rejected'),
+  };
+
+  return (
+    <aside className={`aw-list-panel${panelOpen ? '' : ' aw-list-panel--hidden'}`}>
+      <div className="aw-list-header">
+        <h2 className="aw-list-title">Requests</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="aw-list-count">{list.length}</span>
+          <button className="aw-panel-toggle" onClick={onTogglePanel} title="Collapse panel" aria-label="Collapse panel">
+            ‹
+          </button>
+        </div>
+      </div>
+
+      {Object.entries(groups).map(([groupName, items]) =>
+        items.length === 0 ? null : (
+          <div key={groupName} className="aw-list-group">
+            <button
+              className="aw-list-group-btn"
+              onClick={() => toggle(groupName)}
+              aria-expanded={!collapsed[groupName]}
+            >
+              <span className={`aw-list-group-label aw-list-group-label--${groupName.toLowerCase()}`}>
+                {groupName} ({items.length})
+              </span>
+              <span className={`aw-list-chevron${collapsed[groupName] ? '' : ' aw-list-chevron--open'}`}>›</span>
+            </button>
+
+            {!collapsed[groupName] && items.map(a => (
+              <button
+                key={a._id}
+                className={`aw-list-item${a._id === activeId ? ' aw-list-item--active' : ''}`}
+                onClick={() => onSelect(a._id)}
+              >
+                <div className="aw-list-item-top">
+                  <span className="aw-list-item-rfq">{a.rfqTitle}</span>
+                  <span className={`aw-list-item-badge aw-list-item-badge--${a.status.toLowerCase()}`}>
+                    {a.status}
+                  </span>
+                </div>
+                <p className="aw-list-item-vendor">{a.vendor?.name}</p>
+                <p className="aw-list-item-amount">Rs. {Number(a.quotationAmount).toLocaleString('en-IN')}</p>
+              </button>
+            ))}
+          </div>
+        )
+      )}
+    </aside>
+  );
+}
+
+// ── Main Detail View ──────────────────────────────────────────────────────
+export default function ApprovalWorkflow() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [list, setList]           = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [approval, setApproval]   = useState(null);
+  const [invoiceId, setInvoiceId] = useState(null);  // set when approval is Approved
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError]         = useState('');
+  const [remarks, setRemarks]     = useState('');
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+
+  // Fetch all approvals for the list panel
+  const fetchList = async () => {
+    try {
+      setListLoading(true);
+      const res  = await fetch('/api/v1/approvals');
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      setList(json.data);
+      // Auto-select: use URL param, else first pending, else first item
+      if (!id && json.data.length) {
+        const firstPending = json.data.find(a => a.status === 'Pending') || json.data[0];
+        navigate(`/approvals/${firstPending._id}`, { replace: true });
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  // Fetch one approval for the detail panel
+  const fetchDetail = async (approvalId) => {
+    if (!approvalId) return;
+    try {
+      setDetailLoading(true);
+      setError('');
+      const res  = await fetch(`/api/v1/approvals/${approvalId}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      setApproval(json.data);
+      setInvoiceId(json.invoiceId || null);   // populated when status === Approved
+      setRemarks('');
+      setFormError('');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchList(); }, []);
+  useEffect(() => { if (id) fetchDetail(id); }, [id]);
+
+  const handleSelect = (approvalId) => navigate(`/approvals/${approvalId}`);
+
+  const handleAction = async (action) => {
+    if (!remarks.trim()) { setFormError('Remarks are required.'); return; }
+    setFormError('');
+    setSubmitting(true);
+    try {
+      const res  = await fetch(`/api/v1/approvals/${approval._id}/${action}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ remarks }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      setApproval(json.data);
+      if (json.invoiceId) setInvoiceId(json.invoiceId);   // capture generated invoice ID
+      setRemarks('');
+      setList(prev => prev.map(a => a._id === json.data._id ? { ...a, status: json.data.status } : a));
+    } catch (e) {
+      setFormError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getStepStatus = (idx) => {
+    if (!approval) return 'pending';
+    if (approval.status === 'Approved') return 'done';
+    if (idx < approval.currentStep) return 'done';
+    if (idx === approval.currentStep) return 'active';
+    return 'pending';
+  };
+
+  const isActionable    = approval?.status === 'Pending';
+  const activeChainStep = approval?.chain?.[approval.currentStep];
+
+  return (
+    <div className="aw-layout">
+      <Sidebar />
+
+      {/* Request list panel */}
+      <RequestList
+        list={list}
+        activeId={id}
+        onSelect={handleSelect}
+        loading={listLoading}
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen(p => !p)}
+      />
+
+      {/* Detail panel */}
+      <main className="aw-main">
+        {/* Expand button — shown only when list panel is hidden */}
+        {!panelOpen && (
+          <button
+            className="aw-panel-expand"
+            onClick={() => setPanelOpen(true)}
+            title="Show requests"
+            aria-label="Show requests panel"
+          >
+            ›
+          </button>
+        )}
+        {detailLoading && <div className="aw-loader">Loading details…</div>}
+        {error && !detailLoading && <div className="aw-error">⚠ {error}</div>}
+
+        {!detailLoading && approval && (
+          <>
+            {/* Header */}
+            <header className="aw-header">
+              <div>
+                <h1 className="aw-page-title">Approval Workflow</h1>
+                <p className="aw-page-subtitle">
+                  RFQ: <strong>{approval.rfqTitle}</strong>
+                  &nbsp;·&nbsp; Vendor: <strong>{approval.vendor?.name}</strong>
+                  &nbsp;·&nbsp; <strong>Rs. {Number(approval.quotationAmount).toLocaleString('en-IN')}</strong>
+                  &nbsp;&nbsp;
+                  <span className={`aw-badge aw-badge--${approval.status?.toLowerCase()}`}>{approval.status}</span>
+                </p>
+              </div>
+            </header>
+
+            {/* Stepper */}
+            <div className="aw-stepper-card">
+              <div className="aw-stepper">
+                {STEPS.map((label, idx) => {
+                  const st = getStepStatus(idx);
+                  return (
+                    <React.Fragment key={label}>
+                      <div className={`aw-step aw-step--${st}`}>
+                        <div className="aw-step-circle">{st === 'done' ? '✓' : idx + 1}</div>
+                        <span className="aw-step-label">{label}</span>
+                      </div>
+                      {idx < STEPS.length - 1 && (
+                        <div className={`aw-step-connector${st === 'done' ? ' aw-step-connector--done' : ''}`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Two columns */}
+            <div className="aw-columns">
+              <div className="aw-left-col">
+                {/* Approval Chain */}
+                <div className="aw-card">
+                  <h2 className="aw-card-title">Approval Chain</h2>
+                  <div className="aw-chain">
+                    {approval.chain?.map((step, idx) => (
+                      <div key={idx} className="aw-chain-item">
+                        <div className="aw-chain-line">
+                          <div className={`aw-chain-dot aw-chain-dot--${step.status}`}>
+                            {step.status === 'approved' ? '✓' : step.status === 'rejected' ? '✗' : '⏰'}
+                          </div>
+                          {idx < approval.chain.length - 1 && <div className="aw-chain-vline" />}
+                        </div>
+                        <div className="aw-chain-info">
+                          <p className="aw-chain-name">{step.name}</p>
+                          <p className="aw-chain-role">{step.role}</p>
+                          <span className={`aw-chain-status aw-chain-status--${step.status}`}>
+                            {step.status === 'approved' && step.timestamp
+                              ? `Approved on ${new Date(step.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : step.status === 'rejected' ? 'Rejected'
+                              : 'Awaiting'}
+                          </span>
+                          {step.remarks && <p className="aw-chain-remarks">"{step.remarks}"</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Remarks */}
+                <div className="aw-card">
+                  <h2 className="aw-card-title">
+                    Approval Remarks
+                    {activeChainStep && isActionable && (
+                      <span className="aw-approver-tag"> — Acting as: {activeChainStep.name}</span>
+                    )}
+                  </h2>
+                  <textarea
+                    id="approval-remarks"
+                    className="aw-textarea"
+                    placeholder="Add your comments or conditions before approving / rejecting..."
+                    rows={5}
+                    value={remarks}
+                    onChange={(e) => { setRemarks(e.target.value); setFormError(''); }}
+                    disabled={!isActionable || submitting}
+                    aria-label="Approval remarks"
+                  />
+                  {formError && <p className="aw-form-error">{formError}</p>}
+                </div>
+              </div>
+
+              <div className="aw-right-col">
+                {/* Quotation Summary */}
+                <div className="aw-card">
+                  <h2 className="aw-card-title">Quotation Summary</h2>
+                  <div className="aw-summary">
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">Vendor</span>
+                      <span className="aw-summary-value">{approval.vendor?.name}</span>
+                    </div>
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">RFQ</span>
+                      <span className="aw-summary-value">{approval.rfqTitle}</span>
+                    </div>
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">Category</span>
+                      <span className="aw-summary-value">{approval.category || '—'}</span>
+                    </div>
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">Total Amount</span>
+                      <span className="aw-summary-value aw-summary-value--total">
+                        Rs. {Number(approval.quotationAmount).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">Delivery</span>
+                      <span className="aw-summary-value">{approval.deliveryDays} days</span>
+                    </div>
+                    <div className="aw-summary-row">
+                      <span className="aw-summary-label">Vendor Rating</span>
+                      <StarRating value={approval.vendorRating} />
+                    </div>
+                  </div>
+
+                  {/* Line items mini-table */}
+                  {approval.lineItems?.length > 0 && (
+                    <div className="aw-items-table">
+                      <div className="aw-items-header">
+                        <span>Item</span><span>Qty</span><span>Unit Price</span>
+                      </div>
+                      {approval.lineItems.map((li, i) => (
+                        <div key={i} className="aw-items-row">
+                          <span>{li.item}</span>
+                          <span>{li.qty}</span>
+                          <span>Rs. {Number(li.unitPrice).toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Status result or action buttons */}
+                {approval.status === 'Approved' && (
+                  <div className="aw-status-result aw-status-result--approved">
+                    ✓ Fully Approved — PO &amp; Invoice auto-generated.
+                    <button
+                      className="aw-view-po-btn"
+                      onClick={() => navigate(invoiceId ? `/invoices/${invoiceId}` : '/invoices')}
+                    >
+                      View Generated Invoice →
+                    </button>
+                  </div>
+                )}
+                {approval.status === 'Rejected' && (
+                  <div className="aw-status-result aw-status-result--rejected">
+                    ✗ Rejected — Procurement Officer has been notified.
+                  </div>
+                )}
+                {isActionable && (
+                  <div className="aw-actions">
+                    <button id="btn-approve" className="aw-btn aw-btn--approve" onClick={() => handleAction('approve')} disabled={submitting}>
+                      {submitting ? '…' : '✓ Approve'}
+                    </button>
+                    <button id="btn-reject"  className="aw-btn aw-btn--reject"  onClick={() => handleAction('reject')}  disabled={submitting}>
+                      {submitting ? '…' : '✗ Reject'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Empty state — no approval selected */}
+        {!detailLoading && !approval && !error && (
+          <div className="aw-empty">
+            <p>Select a request from the list to review it.</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

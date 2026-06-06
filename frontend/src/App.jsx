@@ -1,36 +1,33 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Dashboard        from './pages/Dashboard';
+import ApprovalWorkflow from './pages/ApprovalWorkflow';
+import POInvoice        from './pages/POInvoice';
+import Reports          from './pages/Reports';
 
 export default function App() {
-  const [status, setStatus] = useState({ api: "loading", db: "loading" });
-
-  useEffect(() => {
-    fetch("/api/v1/health")
-      .then((response) => response.json())
-      .then((data) => {
-        setStatus({ api: data.api || "unknown", db: data.db || "unknown" });
-      })
-      .catch(() => {
-        setStatus({ api: "offline", db: "offline" });
-      });
-  }, []);
-
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-      <div style={{ maxWidth: "520px", width: "100%", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(15,23,42,0.96)", padding: "40px", boxShadow: "0 40px 120px rgba(15,23,42,0.35)" }}>
-        <h1 style={{ margin: 0, fontSize: "2.75rem", fontWeight: 700 }}>VendorBridge</h1>
-        <p style={{ marginTop: "24px", fontSize: "1.125rem", lineHeight: 1.75, color: "#cbd5e1" }}>
-          Procurement & Vendor Management ERP
-        </p>
-        <div style={{ marginTop: "32px", padding: "24px", borderRadius: "20px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(148,163,184,0.12)" }}>
-          <p style={{ margin: 0, fontSize: "1rem", color: "#94a3b8" }}>
-            API status: <strong style={{ color: "#ffffff" }}>{status.api}</strong>
-          </p>
-          <p style={{ margin: "12px 0 0", fontSize: "1rem", color: "#94a3b8" }}>
-            DB status: <strong style={{ color: "#ffffff" }}>{status.db}</strong>
-          </p>
-        </div>
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Screen 3 — Main Dashboard */}
+        <Route path="/"          element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Screen 8 — Approval Workflow */}
+        <Route path="/approvals"     element={<ApprovalWorkflow />} />
+        <Route path="/approvals/:id" element={<ApprovalWorkflow />} />
+
+        {/* Screen 9 — PO & Invoice */}
+        <Route path="/invoices"            element={<POInvoice />} />
+        <Route path="/invoices/:id"        element={<POInvoice />} />
+        <Route path="/purchase-orders"     element={<POInvoice />} />
+        <Route path="/purchase-orders/:id" element={<POInvoice />} />
+
+        {/* Screen 11 — Reports & Analytics */}
+        <Route path="/reports" element={<Reports />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
