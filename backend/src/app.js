@@ -3,6 +3,12 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 
+// ── Routes (must be at the top with all other imports in ESM) ──────────
+import authRouter       from "./routes/auth.routes.js";
+import rfqRouter        from "./routes/rfq.routes.js";
+import vendorRouter     from "./routes/vendor.routes.js";
+import quotationRouter  from "./routes/quotation.routes.js";
+
 const app = express();
 
 // ============================================
@@ -61,11 +67,10 @@ app.get("/api/v1/health", (req, res) => {
 // ============================================
 // API Routes — versioned at /api/v1/
 // ============================================
-import authRouter from "./routes/auth.routes.js";
-import rfqRouter from "./routes/rfq.routes.js";
-
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/rfqs", rfqRouter);
+app.use("/api/v1/auth",        authRouter);
+app.use("/api/v1/rfqs",        rfqRouter);
+app.use("/api/v1/vendors",     vendorRouter);
+app.use("/api/v1/quotations",  quotationRouter);
 
 // ============================================
 // 404 Handler

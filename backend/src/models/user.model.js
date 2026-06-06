@@ -55,6 +55,16 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    // Vendor-specific fields
+    vendorCategory: {
+      type: String,
+      trim: true,
+      // e.g. "Furniture", "IT Hardware", "Logistics", "Construction", etc.
+    },
   },
   { timestamps: true }
 );
@@ -63,10 +73,9 @@ const userSchema = new Schema(
 // Pre-save Hook: Hash password before writing to DB
 // Fat model, skinny controller — bcrypt stays in the schema
 // ======================================================
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next(); // Critical: avoid re-hashing
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return; // Critical: avoid re-hashing on every save
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 // ======================================================

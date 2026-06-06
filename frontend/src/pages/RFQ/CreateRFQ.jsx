@@ -1,15 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createRFQ } from "../../api/rfq.api.js";
-
-// ── Sample vendors (would come from API in production) ──────────────
-const SAMPLE_VENDORS = [
-  { _id: "v1", name: "Infra Supplies Pvt Ltd", category: "Construction" },
-  { _id: "v2", name: "TechCore LTD", category: "IT" },
-  { _id: "v3", name: "FastLog Transport", category: "Logistics" },
-  { _id: "v4", name: "Office Need Co.", category: "Furniture" },
-  { _id: "v5", name: "DigitalPro Systems", category: "IT" },
-];
+import { getActiveVendors } from "../../api/vendor.api.js";
 
 const CATEGORIES = [
   "Furniture",
@@ -165,27 +157,44 @@ function LineItemsTable({ lineItems, onChange }) {
   );
 }
 
-// ── Vendor Selector Modal ───────────────────────────────────────────
+// ── Vendor Selector Modal (Real API) ─────────────────────────────
 function VendorModal({ assigned, onClose, onAdd }) {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const filtered = SAMPLE_VENDORS.filter(
+  const [allVendors, setAllVendors] = useState([]);
+  const [loadingVendors, setLoadingVendors] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      setLoadingVendors(true);
+      try {
+        const res = await getActiveVendors();
+        setAllVendors(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        setFetchError(err.message || "Failed to load vendors.");
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+    load();
+  }, []);
+
+  const filtered = allVendors.filter(
     (v) =>
-      !assigned.find((a) => a._id === v._id) &&
-      v.name.toLowerCase().includes(search.toLowerCase())
+      !assigned.find((a) => String(a._id) === String(v._id)) &&
+      (
+        (v.companyName || v.name).toLowerCase().includes(search.toLowerCase()) ||
+        (v.vendorCategory || "").toLowerCase().includes(search.toLowerCase())
+      )
   );
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="vendor-modal-title">
       <div className="modal">
         <div className="flex items-center justify-between mb-4">
-          <h3 id="vendor-modal-title" style={{ fontSize: "1.125rem" }}>
-            Add Vendor
-          </h3>
-          <button
-            className="btn-icon btn"
-            onClick={onClose}
-            aria-label="Close vendor modal"
-          >
+          <h3 id="vendor-modal-title" style={{ fontSize: "1.125rem" }}>Assign Vendor</h3>
+          <button className="btn-icon btn" onClick={onClose} aria-label="Close vendor modal">
             ✕
           </button>
         </div>
@@ -193,16 +202,30 @@ function VendorModal({ assigned, onClose, onAdd }) {
         <input
           type="text"
           className="form-input mb-4"
-          placeholder="Search vendors..."
+          placeholder="Search vendors by name or category..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           id="vendor-search-input"
           autoFocus
         />
 
-        {filtered.length === 0 ? (
+        {loadingVendors ? (
+          <p className="text-muted text-sm" style={{ textAlign: "center", padding: "24px" }}>Loading vendors...</p>
+        ) : fetchError ? (
+          <p style={{ textAlign: "center", padding: "24px", color: "var(--accent-danger)", fontSize: "0.875rem" }}>⚠ {fetchError}</p>
+        ) : allVendors.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px" }}>
+            <p className="text-muted text-sm" style={{ marginBottom: "12px" }}>No active vendors registered yet.</p>
+            <button type="button" className="btn btn-primary"
+              onClick={() => { onClose(); navigate("/vendors"); }}
+              style={{ fontSize: "0.8125rem", padding: "8px 16px" }}
+            >
+              + Add Vendors First
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <p className="text-muted text-sm" style={{ textAlign: "center", padding: "24px" }}>
-            {search ? "No vendors found matching your search." : "All vendors are already assigned."}
+            {search ? "No vendors found matching your search." : "All active vendors are already assigned."}
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -210,43 +233,24 @@ function VendorModal({ assigned, onClose, onAdd }) {
               <button
                 key={vendor._id}
                 type="button"
-                onClick={() => onAdd(vendor)}
+                onClick={() => onAdd({ _id: vendor._id, name: vendor.companyName || vendor.name, category: vendor.vendorCategory })}
                 id={`vendor-option-${vendor._id}`}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  borderRadius: "var(--radius-inner)",
-                  background: "var(--bg)",
-                  boxShadow: "var(--shadow-extruded-sm)",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "var(--transition)",
-                  width: "100%",
-                  textAlign: "left",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 16px", borderRadius: "var(--radius-inner)",
+                  background: "var(--bg)", boxShadow: "var(--shadow-extruded-sm)",
+                  border: "none", cursor: "pointer", transition: "var(--transition)",
+                  width: "100%", textAlign: "left",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "var(--shadow-extruded)";
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "var(--shadow-extruded-sm)";
-                  e.currentTarget.style.transform = "none";
-                }}
+                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-extruded)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-extruded-sm)"; e.currentTarget.style.transform = "none"; }}
               >
                 <div>
-                  <div
-                    style={{
-                      fontSize: "0.875rem",
-                      fontWeight: "600",
-                      color: "var(--fg)",
-                    }}
-                  >
-                    {vendor.name}
+                  <div style={{ fontSize: "0.875rem", fontWeight: "600", color: "var(--fg)" }}>
+                    {vendor.companyName || vendor.name}
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-                    {vendor.category}
+                    {vendor.vendorCategory || "No category"} · {vendor.email}
                   </div>
                 </div>
                 <span style={{ color: "var(--accent)", fontSize: "1.25rem" }}>+</span>
@@ -260,6 +264,7 @@ function VendorModal({ assigned, onClose, onAdd }) {
 }
 
 // ── Step 1 Form ─────────────────────────────────────────────────────
+
 function Step1({ form, onChange, errors }) {
   const [vendorModalOpen, setVendorModalOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -767,6 +772,13 @@ export default function CreateRFQ() {
 
   // ── Submit ──────────────────────────────────────────────────────
   const handleSubmit = async (sendNow) => {
+    // Guard: must be logged in
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      setError("You must be logged in to save an RFQ. Please log in and try again.");
+      return;
+    }
+
     setSendToVendors(sendNow);
     setLoading(true);
     setError("");
@@ -774,7 +786,7 @@ export default function CreateRFQ() {
     const payload = {
       title: form.title.trim(),
       category: form.category,
-      deadline: form.deadline,
+      deadline: new Date(form.deadline).toISOString(),
       description: form.description.trim(),
       lineItems: form.lineItems
         .filter((i) => i.item.trim() && i.qty)
@@ -788,13 +800,8 @@ export default function CreateRFQ() {
       setSubmittedRFQ(res.data);
       setStep(3);
     } catch (err) {
-      // Demo mode — show success without real backend
-      setSubmittedRFQ({
-        rfqNumber: `RFQ-2025-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-        title: form.title,
-        status: sendNow ? "Open" : "Draft",
-      });
-      setStep(3);
+      // Show the real error — never fake success
+      setError(err.message || "Failed to save RFQ. Please try again.");
     } finally {
       setLoading(false);
     }

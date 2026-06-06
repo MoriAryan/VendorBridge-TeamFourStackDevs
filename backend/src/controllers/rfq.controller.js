@@ -131,7 +131,7 @@ const getAllRFQs = asyncHandler(async (req, res) => {
         pipeline: [{ $project: { name: 1, email: 1, role: 1 } }],
       },
     },
-    { $unwind: { path: "$createdByUser", preserveNullAndEmpty: true } },
+    { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
         from: "users",
@@ -204,7 +204,7 @@ const getRFQById = asyncHandler(async (req, res) => {
         pipeline: [{ $project: { name: 1, email: 1, role: 1 } }],
       },
     },
-    { $unwind: { path: "$createdByUser", preserveNullAndEmpty: true } },
+    { $unwind: { path: "$createdByUser", preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
         from: "users",

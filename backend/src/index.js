@@ -1,8 +1,6 @@
-import dotenv from "dotenv";
+import "dotenv/config"; // Must be first — loads .env before any other module runs
 import app from "./app.js";
 import connectDB from "../db/index.js";
-
-dotenv.config();
 
 const PORT = process.env.PORT || 8000;
 

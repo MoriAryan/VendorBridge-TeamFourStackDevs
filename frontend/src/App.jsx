@@ -4,6 +4,10 @@ import AuthPage from "./pages/Auth/AuthPage.jsx";
 import RFQList from "./pages/RFQ/RFQList.jsx";
 import CreateRFQ from "./pages/RFQ/CreateRFQ.jsx";
 import RFQDetail from "./pages/RFQ/RFQDetail.jsx";
+import VendorList from "./pages/Vendor/VendorList.jsx";
+import VendorDetail from "./pages/Vendor/VendorDetail.jsx";
+import QuotationList from "./pages/Quotation/QuotationList.jsx";
+import QuotationComparison from "./pages/Quotation/QuotationComparison.jsx";
 
 // ── Auth guard: check if a token is stored ────────────────────────
 function isLoggedIn() {
@@ -93,21 +97,18 @@ export default function App() {
           />
 
           {/* Vendors */}
-          <Route
-            path="/vendors"
-            element={<Placeholder title="Vendor Management" icon="🏢" />}
-          />
+          <Route path="/vendors" element={<VendorList />} />
+          <Route path="/vendors/:id" element={<VendorDetail />} />
 
           {/* RFQs — Primary module */}
           <Route path="/rfqs" element={<RFQList />} />
           <Route path="/rfqs/create" element={<CreateRFQ />} />
           <Route path="/rfqs/:id" element={<RFQDetail />} />
 
-          {/* Quotations */}
-          <Route
-            path="/quotations"
-            element={<Placeholder title="Quotations" icon="💬" />}
-          />
+          {/* Quotations — must put /compare before /:id */}
+          <Route path="/quotations" element={<QuotationList />} />
+          <Route path="/quotations/compare" element={<QuotationComparison />} />
+          <Route path="/quotations/:id" element={<QuotationList />} />
 
           {/* Approvals */}
           <Route

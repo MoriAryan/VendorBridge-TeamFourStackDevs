@@ -221,16 +221,18 @@ function StatsRow({ stats }) {
 export default function RFQList() {
   const navigate = useNavigate();
 
-  const [rfqs, setRfqs] = useState(DEMO_RFQS);
-  const [stats, setStats] = useState(DEMO_STATS);
+  const [rfqs, setRfqs] = useState([]);
+  const [stats, setStats] = useState({ total: 0, Draft: 0, Open: 0, Closed: 0, Expired: 0 });
   const [activeFilter, setActiveFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   // ── Fetch RFQs ────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setFetchError("");
       try {
         const [rfqRes, statsRes] = await Promise.all([
           getAllRFQs({
@@ -239,31 +241,24 @@ export default function RFQList() {
           }),
           getRFQStats(),
         ]);
-        setRfqs(rfqRes.data?.rfqs || DEMO_RFQS);
-        setStats(statsRes.data || DEMO_STATS);
-      } catch {
-        // Backend offline — use demo data
-        let filtered = DEMO_RFQS;
-        if (activeFilter !== "All") {
-          filtered = filtered.filter((r) => r.status === activeFilter);
+        setRfqs(rfqRes.data?.rfqs || []);
+        setStats(statsRes.data || { total: 0, Draft: 0, Open: 0, Closed: 0, Expired: 0 });
+      } catch (err) {
+        const msg = err.message || "";
+        if (msg.includes("401") || msg.toLowerCase().includes("unauthorized") || msg.toLowerCase().includes("token")) {
+          // Not logged in — redirect to login
+          navigate("/login");
+        } else {
+          setFetchError(msg || "Failed to load RFQs. Please refresh.");
         }
-        if (search) {
-          filtered = filtered.filter(
-            (r) =>
-              r.title.toLowerCase().includes(search.toLowerCase()) ||
-              r.category?.toLowerCase().includes(search.toLowerCase()) ||
-              r.rfqNumber?.toLowerCase().includes(search.toLowerCase())
-          );
-        }
-        setRfqs(filtered);
       } finally {
         setLoading(false);
       }
     };
 
-    const timer = setTimeout(fetchData, 300); // Debounce search
+    const timer = setTimeout(fetchData, 300);
     return () => clearTimeout(timer);
-  }, [activeFilter, search]);
+  }, [activeFilter, search, navigate]);
 
   const filteredRFQs =
     activeFilter === "All"
@@ -305,6 +300,25 @@ export default function RFQList() {
 
       {/* KPI Stats */}
       <StatsRow stats={stats} />
+
+      {/* Error Banner */}
+      {fetchError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "24px",
+            padding: "12px 16px",
+            borderRadius: "var(--radius-inner)",
+            background: "rgba(229,62,62,0.08)",
+            color: "var(--accent-danger)",
+            fontSize: "0.875rem",
+            fontWeight: "500",
+          }}
+        >
+          ⚠ {fetchError}
+        </div>
+      )}
+
 
       {/* Search & Filter Bar */}
       <div className="search-bar">

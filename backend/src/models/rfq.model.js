@@ -5,25 +5,18 @@ import mongoose, { Schema } from "mongoose";
 // ============================================================
 const lineItemSchema = new Schema(
   {
-    item: {
-      type: String,
-      required: [true, "Item name is required"],
-      trim: true,
-    },
-    qty: {
-      type: Number,
-      required: [true, "Quantity is required"],
-      min: [1, "Quantity must be at least 1"],
-    },
+    // Support both field naming conventions (schema name vs frontend name)
+    item: { type: String, trim: true },        // internal name
+    itemName: { type: String, trim: true },    // frontend name
+    qty: { type: Number, min: [1, "Quantity must be at least 1"] },
+    quantity: { type: Number, min: [1, "Quantity must be at least 1"] },
     unit: {
       type: String,
       trim: true,
-      default: "NOS", // Number of Sets — common procurement default
+      default: "NOS",
     },
-    description: {
-      type: String,
-      trim: true,
-    },
+    estimatedUnitPrice: { type: Number, default: 0 },
+    description: { type: String, trim: true },
   },
   { _id: true }
 );
@@ -98,13 +91,13 @@ const rfqSchema = new Schema(
 // ============================================================
 // Pre-save Hook: Auto-generate RFQ number (e.g., RFQ-2025-0001)
 // ============================================================
-rfqSchema.pre("save", async function (next) {
+// Mongoose v8+: async middleware resolves via Promise — do NOT call next()
+rfqSchema.pre("save", async function () {
   if (this.isNew) {
     const year = new Date().getFullYear();
     const count = await mongoose.model("RFQ").countDocuments();
     this.rfqNumber = `RFQ-${year}-${String(count + 1).padStart(4, "0")}`;
   }
-  next();
 });
 
 // ============================================================
