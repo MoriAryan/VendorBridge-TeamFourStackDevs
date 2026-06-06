@@ -11,23 +11,117 @@ function fmtL(n) {
 
 const PALETTE = ['#6C63FF','#38B2AC','#D69E2E','#E53E3E','#9F99FF','#DD6B20','#805AD5','#2F855A'];
 
-// ── Pure CSS Vertical Bar Chart ───────────────────────────────────────────────
-function BarChart({ data, color = '#6C63FF', height = 200 }) {
-  const max = Math.max(...data.map(d => d.amount), 1);
+// ── SVG Area / Line Chart (replaces the flat bar chart) ──────────────────────
+function AreaChart({ data, color = '#6C63FF', height = 220 }) {
+  if (!data || data.length === 0) return <p className="rp-empty">No trend data.</p>;
+
+  const W = 560; const H = height;
+  const PAD = { top: 30, right: 20, bottom: 44, left: 60 };
+  const iW = W - PAD.left - PAD.right;
+  const iH = H - PAD.top  - PAD.bottom;
+
+  const maxVal = Math.max(...data.map(d => d.amount), 1);
+  // 5 nice Y gridlines
+  const yTicks = Array.from({ length: 5 }, (_, i) => maxVal * (i / 4));
+
+  const xOf = (i) => PAD.left + (i / (data.length - 1 || 1)) * iW;
+  const yOf = (v) => PAD.top  + iH - (v / maxVal) * iH;
+
+  // Build SVG polyline points
+  const pts  = data.map((d, i) => `${xOf(i)},${yOf(d.amount)}`).join(' ');
+  // Area path (closed at baseline)
+  const areaD = [
+    `M${xOf(0)},${yOf(data[0].amount)}`,
+    ...data.slice(1).map((d, i) => {
+      // Smooth bezier between points
+      const x1 = xOf(i); const y1 = yOf(data[i].amount);
+      const x2 = xOf(i + 1); const y2 = yOf(d.amount);
+      const cx1 = x1 + (x2 - x1) * 0.5; const cx2 = x2 - (x2 - x1) * 0.5;
+      return `C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`;
+    }),
+    `L${xOf(data.length - 1)},${PAD.top + iH}`,
+    `L${xOf(0)},${PAD.top + iH}`,
+    'Z',
+  ].join(' ');
+  // Line path only (no close)
+  const lineD = [
+    `M${xOf(0)},${yOf(data[0].amount)}`,
+    ...data.slice(1).map((d, i) => {
+      const x1 = xOf(i); const y1 = yOf(data[i].amount);
+      const x2 = xOf(i + 1); const y2 = yOf(d.amount);
+      const cx1 = x1 + (x2 - x1) * 0.5; const cx2 = x2 - (x2 - x1) * 0.5;
+      return `C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`;
+    }),
+  ].join(' ');
+
+  const gradId  = `area-grad-${color.replace('#','')}`;
+  const glowId  = `area-glow-${color.replace('#','')}`;
+
   return (
-    <div className="rp-bar-chart" style={{ height }}>
-      {data.map((d, i) => (
-        <div key={i} className="rp-bar-col" title={`${d.label}: ${fmtL(d.amount)}`}>
-          <span className="rp-bar-val">{d.amount > 0 ? fmtL(d.amount) : ''}</span>
-          <div className="rp-bar-track">
-            <div className="rp-bar-fill" style={{ height: `${(d.amount / max) * 100}%`, background: color }} />
-          </div>
-          <span className="rp-bar-label">{d.label}</span>
-        </div>
+    <svg viewBox={`0 0 ${W} ${H}`} className="rp-area-chart" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.38" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+        <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
+      {/* Y-axis grid lines */}
+      {yTicks.map((v, i) => (
+        <g key={i}>
+          <line
+            x1={PAD.left} y1={yOf(v)} x2={W - PAD.right} y2={yOf(v)}
+            stroke="rgba(163,177,198,0.3)" strokeWidth="1" strokeDasharray={i === 0 ? 'none' : '4,4'}
+          />
+          <text x={PAD.left - 8} y={yOf(v) + 4} textAnchor="end" fontSize="9" fill="#718096" fontFamily="DM Sans,sans-serif">
+            {v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : v >= 1000 ? `₹${(v/1000).toFixed(0)}K` : `₹${v}`}
+          </text>
+        </g>
       ))}
-    </div>
+
+      {/* Area fill */}
+      <path d={areaD} fill={`url(#${gradId})`} />
+
+      {/* Glow line */}
+      <path d={lineD} fill="none" stroke={color} strokeWidth="5" strokeOpacity="0.18" filter={`url(#${glowId})`} strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Main line */}
+      <path d={lineD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Data points + labels */}
+      {data.map((d, i) => (
+        <g key={i}>
+          {/* X label */}
+          <text x={xOf(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="#718096" fontFamily="DM Sans,sans-serif" fontWeight="600">
+            {d.label}
+          </text>
+
+          {/* Vertical tick */}
+          <line x1={xOf(i)} y1={PAD.top + iH} x2={xOf(i)} y2={PAD.top + iH + 5} stroke="rgba(163,177,198,0.5)" strokeWidth="1" />
+
+          {/* Only draw circle + value if amount > 0 */}
+          {d.amount > 0 && (
+            <>
+              {/* Shadow circle */}
+              <circle cx={xOf(i)} cy={yOf(d.amount)} r="7" fill={color} opacity="0.15" />
+              {/* Main dot */}
+              <circle cx={xOf(i)} cy={yOf(d.amount)} r="4.5" fill={color} stroke="white" strokeWidth="2" />
+              {/* Value label */}
+              <text x={xOf(i)} y={yOf(d.amount) - 12} textAnchor="middle" fontSize="10" fill={color} fontFamily="Plus Jakarta Sans,sans-serif" fontWeight="800">
+                {d.amount >= 100000 ? `₹${(d.amount/100000).toFixed(2)}L` : d.amount >= 1000 ? `₹${(d.amount/1000).toFixed(1)}K` : `₹${d.amount}`}
+              </text>
+            </>
+          )}
+        </g>
+      ))}
+    </svg>
   );
 }
+
 
 // ── Horizontal Bar Chart ──────────────────────────────────────────────────────
 function HBar({ data, showVal = true }) {
@@ -184,7 +278,6 @@ export default function Reports() {
         <header className="rp-header">
           <div>
             <h1 className="rp-page-title">Reports &amp; Analytics</h1>
-            <p className="rp-page-subtitle">Procurement insights — live from DB · Read-only aggregation</p>
           </div>
           <div className="rp-export-group">
             <button className="rp-export-btn rp-export-btn--csv" onClick={handleCSV} disabled={!!exporting}>
@@ -208,8 +301,8 @@ export default function Reports() {
         {/* ── Row 2: Monthly Trend + Approval Pipeline ───────────────────── */}
         <div className="rp-row-2">
           <div className="rp-card rp-card--trend">
-            <p className="rp-card-title">Monthly Spend Trend (Last 6 Months)</p>
-            <BarChart data={monthlyTrend} color="#6C63FF" height={210} />
+            <p className="rp-card-title">Monthly Spend Trend</p>
+            <AreaChart data={monthlyTrend} color="#6C63FF" height={230} />
           </div>
           <div className="rp-card rp-card--pipeline">
             <p className="rp-card-title">Approval Pipeline</p>

@@ -25,8 +25,8 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__logo">
-        <div className="sidebar__badge">VB</div>
-        <div>
+        <img src="/logo.png" alt="VendorBridge" className="sidebar__logo-img" />
+        <div className="sidebar__logo-text">
           <span className="sidebar__name">VendorBridge</span>
           <span className="sidebar__tagline">Procurement ERP</span>
         </div>

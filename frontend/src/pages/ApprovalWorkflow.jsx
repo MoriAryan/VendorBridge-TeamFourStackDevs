@@ -293,7 +293,6 @@ export default function ApprovalWorkflow() {
               </div>
 
               <div className="aw-right-col">
-                {/* Quotation Summary */}
                 <div className="aw-card">
                   <h2 className="aw-card-title">Quotation Summary</h2>
                   <div className="aw-summary">
@@ -310,12 +309,6 @@ export default function ApprovalWorkflow() {
                       <span className="aw-summary-value">{approval.category || '—'}</span>
                     </div>
                     <div className="aw-summary-row">
-                      <span className="aw-summary-label">Total Amount</span>
-                      <span className="aw-summary-value aw-summary-value--total">
-                        Rs. {Number(approval.quotationAmount).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div className="aw-summary-row">
                       <span className="aw-summary-label">Delivery</span>
                       <span className="aw-summary-value">{approval.deliveryDays} days</span>
                     </div>
@@ -326,20 +319,49 @@ export default function ApprovalWorkflow() {
                   </div>
 
                   {/* Line items mini-table */}
-                  {approval.lineItems?.length > 0 && (
-                    <div className="aw-items-table">
-                      <div className="aw-items-header">
-                        <span>Item</span><span>Qty</span><span>Unit Price</span>
-                      </div>
-                      {approval.lineItems.map((li, i) => (
-                        <div key={i} className="aw-items-row">
-                          <span>{li.item}</span>
-                          <span>{li.qty}</span>
-                          <span>Rs. {Number(li.unitPrice).toLocaleString('en-IN')}</span>
+                  {approval.lineItems?.length > 0 && (() => {
+                    const subtotal   = approval.lineItems.reduce((s, li) => s + li.qty * li.unitPrice, 0);
+                    const cgst       = Math.round(subtotal * 0.09);
+                    const sgst       = Math.round(subtotal * 0.09);
+                    const grandTotal = subtotal + cgst + sgst;
+                    const fmt = (n) => Number(n).toLocaleString('en-IN');
+                    return (
+                      <>
+                        <div className="aw-items-table">
+                          <div className="aw-items-header">
+                            <span>Item</span><span>Qty</span><span>Unit Price</span><span>Total</span>
+                          </div>
+                          {approval.lineItems.map((li, i) => (
+                            <div key={i} className="aw-items-row">
+                              <span>{li.item}</span>
+                              <span>{li.qty}</span>
+                              <span>₹{fmt(li.unitPrice)}</span>
+                              <span>₹{fmt(li.qty * li.unitPrice)}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {/* Tax breakdown */}
+                        <div className="aw-tax-breakdown">
+                          <div className="aw-tax-row">
+                            <span>Subtotal</span>
+                            <span>₹{fmt(subtotal)}</span>
+                          </div>
+                          <div className="aw-tax-row">
+                            <span>CGST (9%)</span>
+                            <span>₹{fmt(cgst)}</span>
+                          </div>
+                          <div className="aw-tax-row">
+                            <span>SGST (9%)</span>
+                            <span>₹{fmt(sgst)}</span>
+                          </div>
+                          <div className="aw-tax-row aw-tax-row--total">
+                            <span>Grand Total (incl. 18% GST)</span>
+                            <span>₹{fmt(grandTotal)}</span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Status result or action buttons */}

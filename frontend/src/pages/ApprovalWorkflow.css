@@ -234,11 +234,18 @@ body { background: var(--bg); font-family: var(--font-body); color: var(--fg); -
 
 /* ── Line items mini-table ──────────────────────────────────────────────── */
 .aw-items-table { margin-top: 16px; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--sh-in-sm); }
-.aw-items-header, .aw-items-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; padding: 9px 13px; font-size: 12px; }
+.aw-items-header, .aw-items-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; padding: 9px 13px; font-size: 12px; }
 .aw-items-header { background: var(--bg); box-shadow: var(--sh-in-sm); font-weight: 700; color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.8px; }
 .aw-items-row    { color: var(--fg); border-bottom: 1px solid rgba(163,177,198,0.15); }
 .aw-items-row:last-child { border-bottom: none; }
-.aw-items-row span:nth-child(2), .aw-items-row span:nth-child(3) { text-align: right; font-weight: 600; }
+.aw-items-row span:nth-child(2), .aw-items-row span:nth-child(3), .aw-items-row span:nth-child(4) { text-align: right; font-weight: 600; }
+
+/* ── Tax Breakdown ───────────────────────────────────────────────────────── */
+.aw-tax-breakdown { margin-top: 12px; border-top: 1px solid rgba(163,177,198,0.25); padding-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.aw-tax-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.aw-tax-row span:last-child { font-weight: 600; color: var(--fg); }
+.aw-tax-row--total { border-top: 1px solid rgba(163,177,198,0.3); padding-top: 9px; margin-top: 4px; font-weight: 700; font-size: 14px; }
+.aw-tax-row--total span { color: var(--accent) !important; font-family: var(--font-head); font-weight: 800; font-size: 15px; }
 
 /* ── Action Buttons ─────────────────────────────────────────────────────── */
 .aw-actions { display: flex; gap: 12px; }

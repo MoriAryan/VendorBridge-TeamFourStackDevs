@@ -1,6 +1,23 @@
 import { Approval } from '../models/approval.model.js';
 import { PurchaseOrder } from '../models/purchaseOrder.model.js';
 import { Invoice } from '../models/invoice.model.js';
+import { ActivityLog } from '../models/activityLog.model.js';
+
+// ── Helper: write an activity log entry ──────────────────────────────────────
+async function logActivity({ actionType, entityType, entityId, description, metadata = {} }) {
+  try {
+    await ActivityLog.create({
+      userId:      'system',   // no auth yet; will be replaced with real userId once RBAC added
+      actionType,
+      entityType,
+      entityId:    String(entityId),
+      description,
+      metadata,
+    });
+  } catch (e) {
+    console.error('[ActivityLog] Failed to write log:', e.message);
+  }
+}
 
 // ── Helper: auto-generate PO + Invoice after full approval ──────────────────
 async function generatePOAndInvoice(approval) {
@@ -44,7 +61,24 @@ async function generatePOAndInvoice(approval) {
     status:          'Sent',
   });
 
-  console.log(`[Activity] PO ${poNumber} generated and Invoice created for approval ${approval._id}`);
+  // Log PO generation
+  await logActivity({
+    actionType:  'PO_GENERATED',
+    entityType:  'PurchaseOrder',
+    entityId:    po._id,
+    description: `PO ${poNumber} generated for "${approval.rfqTitle}" (${approval.vendor?.name}) — Total: ₹${grandTotal.toLocaleString('en-IN')} incl. GST`,
+    metadata:    { subtotal, cgst, sgst, grandTotal, poNumber },
+  });
+
+  // Log invoice generation
+  await logActivity({
+    actionType:  'INVOICE_GENERATED',
+    entityType:  'Invoice',
+    entityId:    invoice._id,
+    description: `Invoice generated for PO ${poNumber} — ₹${grandTotal.toLocaleString('en-IN')} due by ${dueDate.toLocaleDateString('en-IN')}`,
+    metadata:    { poId: po._id, grandTotal, dueDate },
+  });
+
   return { po, invoice };
 }
 
@@ -67,12 +101,20 @@ export const createApproval = async (req, res) => {
       vendor: { name: vendorName, address: 'Pending Vendor Details', gstin: 'PENDING' },
       quotationAmount,
       deliveryDays: 14,
-      vendorRating: 0, // Unrated initially
+      vendorRating: 0,
       category: category || 'Other',
       lineItems,
       status: 'Pending',
       currentStep: 0,
       chain: [L1, L2],
+    });
+
+    await logActivity({
+      actionType:  'REQUEST_CREATED',
+      entityType:  'Approval',
+      entityId:    newApproval._id,
+      description: `New procurement request created: "${rfqTitle}" from ${vendorName} — ₹${quotationAmount.toLocaleString('en-IN')} (${category || 'Other'})`,
+      metadata:    { rfqTitle, vendorName, amount: quotationAmount, category },
     });
 
     res.status(201).json({ success: true, data: newApproval });
@@ -97,7 +139,6 @@ export const getApprovalById = async (req, res) => {
     const approval = await Approval.findById(req.params.id);
     if (!approval) return res.status(404).json({ success: false, message: 'Approval not found' });
 
-    // If approved, also return the generated invoice ID for navigation
     let invoiceId = null;
     if (approval.status === 'Approved') {
       const po      = await PurchaseOrder.findOne({ approvalId: approval._id });
@@ -126,27 +167,41 @@ export const approveStep = async (req, res) => {
     const step = approval.chain[approval.currentStep];
     if (!step) return res.status(400).json({ success: false, message: 'No active approval step.' });
 
-    // ── Mark ONLY the current step as approved ─────────────────────────────
     step.status    = 'approved';
     step.remarks   = remarks.trim();
     step.timestamp = new Date();
 
     const nextStep = approval.currentStep + 1;
-
     let invoiceId = null;
 
     if (nextStep >= approval.chain.length) {
-      // ── All steps done → fully Approved, generate PO + Invoice ────────────
+      // All steps done → fully Approved
       approval.status = 'Approved';
       await approval.save();
+
+      // Log L2 approval
+      await logActivity({
+        actionType:  'APPROVAL_APPROVED',
+        entityType:  'Approval',
+        entityId:    approval._id,
+        description: `${step.name} (${step.role}) approved "${approval.rfqTitle}" — fully approved. PO & Invoice being generated.`,
+        metadata:    { approver: step.name, role: step.role, remarks: remarks.trim() },
+      });
+
       const { invoice } = await generatePOAndInvoice(approval);
       invoiceId = invoice._id;
-      console.log(`[Activity] Quotation for RFQ "${approval.rfqTitle}" fully approved. Invoice generated.`);
     } else {
-      // ── Advance to next step, keep status Pending ──────────────────────────
+      // Advance to next step
       approval.currentStep = nextStep;
       await approval.save();
-      console.log(`[Activity] Step ${approval.currentStep} approved for "${approval.rfqTitle}". Awaiting step ${nextStep + 1}.`);
+
+      await logActivity({
+        actionType:  'APPROVAL_APPROVED',
+        entityType:  'Approval',
+        entityId:    approval._id,
+        description: `${step.name} (${step.role}) approved "${approval.rfqTitle}" — advancing to ${approval.chain[nextStep]?.name} for final sign-off.`,
+        metadata:    { approver: step.name, role: step.role, remarks: remarks.trim(), nextApprover: approval.chain[nextStep]?.name },
+      });
     }
 
     res.json({ success: true, data: approval, invoiceId, message: 'Step approved.' });
@@ -176,8 +231,46 @@ export const rejectApproval = async (req, res) => {
     approval.status = 'Rejected';
     await approval.save();
 
-    console.log(`[Activity] Quotation for RFQ "${approval.rfqTitle}" rejected at step ${approval.currentStep + 1}.`);
+    await logActivity({
+      actionType:  'APPROVAL_REJECTED',
+      entityType:  'Approval',
+      entityId:    approval._id,
+      description: `${step?.name || 'Approver'} (${step?.role || ''}) rejected "${approval.rfqTitle}" — "${remarks.trim()}"`,
+      metadata:    { approver: step?.name, role: step?.role, remarks: remarks.trim() },
+    });
+
     res.json({ success: true, data: approval, message: 'Approval rejected.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/v1/approvals/:id/pay-invoice  — mark invoice as Paid
+export const markInvoicePaid = async (req, res) => {
+  try {
+    const approval = await Approval.findById(req.params.id);
+    if (!approval) return res.status(404).json({ success: false, message: 'Approval not found' });
+
+    const po = await PurchaseOrder.findOne({ approvalId: approval._id });
+    if (!po) return res.status(404).json({ success: false, message: 'PO not found' });
+
+    const invoice = await Invoice.findOne({ purchaseOrderId: po._id });
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+    invoice.status = 'Paid';
+    await invoice.save();
+    po.status = 'Completed';
+    await po.save();
+
+    await logActivity({
+      actionType:  'INVOICE_GENERATED',
+      entityType:  'Invoice',
+      entityId:    invoice._id,
+      description: `Invoice for "${approval.rfqTitle}" marked as Paid — ₹${po.grandTotal.toLocaleString('en-IN')}`,
+      metadata:    { poId: po._id, invoiceId: invoice._id, grandTotal: po.grandTotal },
+    });
+
+    res.json({ success: true, message: 'Invoice marked as Paid.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

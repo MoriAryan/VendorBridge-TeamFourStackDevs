@@ -60,13 +60,11 @@ body { background: var(--bg); font-family: var(--font-body); color: var(--fg); -
 .rp-row-2 { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
 .rp-row-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
-/* ── Vertical Bar Chart ─────────────────────────────────────────────────── */
-.rp-bar-chart { display: flex; gap: 8px; align-items: flex-end; padding: 10px 0 0; }
-.rp-bar-col   { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-.rp-bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; background: var(--bg); border-radius: var(--r-sm) var(--r-sm) 0 0; box-shadow: var(--sh-in-sm); overflow: hidden; }
-.rp-bar-fill  { width: 100%; min-height: 4px; border-radius: var(--r-sm) var(--r-sm) 0 0; transition: height 0.8s var(--ease); }
-.rp-bar-label { font-size: 10px; color: var(--muted); font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.rp-bar-val   { font-family: var(--font-head); font-size: 9px; font-weight: 700; color: var(--accent); text-align: center; min-height: 12px; }
+/* ── SVG Area Chart ─────────────────────────────────────────────────────── */
+.rp-area-chart {
+  width: 100%; height: auto; display: block;
+  overflow: visible;
+}
 
 /* ── Donut ──────────────────────────────────────────────────────────────── */
 .rp-donut-wrap   { display: flex; align-items: center; gap: 24px; justify-content: center; flex-wrap: wrap; }

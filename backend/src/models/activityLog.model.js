@@ -8,9 +8,9 @@ const activityLogSchema = new Schema(
       required: false, 
     },
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
+      type: String,
+      required: false,
+      default: 'system',
     },
     actionType: {
       type: String,

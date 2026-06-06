@@ -51,21 +51,33 @@ export const getAnalyticsSummary = async (req, res) => {
     });
     const topVendors = Object.values(vendorMap).sort((a, b) => b.spend - a.spend).slice(0, 6);
 
-    // ── Monthly spend trend — last 6 months ──────────────────────────────────
-    const months = [];
+    // ── Monthly spend trend — build from actual PO data ──────────────────
+    // Collect all months that have data, plus fill current 6 months
+    const monthMap = {};
     const now = new Date();
+    // Pre-fill last 6 months so the chart always shows recent context
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ label: d.toLocaleString('en-IN', { month: 'short', year: '2-digit' }), year: d.getFullYear(), month: d.getMonth(), amount: 0, count: 0 });
+      const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
+      monthMap[key] = { label: d.toLocaleString('en-IN', { month: 'short', year: '2-digit' }), year: d.getFullYear(), month: d.getMonth(), amount: 0, count: 0 };
     }
+    // Add any historical months from actual PO data
     invoices.forEach(inv => {
       const po = inv.purchaseOrderId;
       if (!po?.poDate) return;
-      const d    = new Date(po.poDate);
-      const slot = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
-      if (slot) { slot.amount += po.grandTotal || 0; slot.count += 1; }
+      const d   = new Date(po.poDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
+      if (!monthMap[key]) {
+        monthMap[key] = { label: d.toLocaleString('en-IN', { month: 'short', year: '2-digit' }), year: d.getFullYear(), month: d.getMonth(), amount: 0, count: 0 };
+      }
+      monthMap[key].amount += po.grandTotal || 0;
+      monthMap[key].count  += 1;
     });
-    const monthlyTrend = months.map(({ label, amount, count }) => ({ label, amount, count }));
+    // Sort chronologically, keep last 8 months max
+    const monthlyTrend = Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-8)
+      .map(([, v]) => ({ label: v.label, amount: v.amount, count: v.count }));
 
     // ── Approval cycle time (avg days from submission to final decision) ──────
     let totalDays = 0; let cycleCount = 0;

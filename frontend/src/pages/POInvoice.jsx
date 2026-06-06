@@ -236,9 +236,7 @@ export default function POInvoice() {
             </header>
 
             <div id="po-invoice-content">
-              <div className="pi-immutable-note">
-                <span>🔒</span> Auto-generated &amp; locked — all data read-only (Rules 2 &amp; 3).
-              </div>
+             
 
               {/* Billing */}
               <div className="pi-card">
