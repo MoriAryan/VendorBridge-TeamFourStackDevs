@@ -10,6 +10,10 @@ import QuotationList from "./pages/Quotation/QuotationList.jsx";
 import QuotationComparison from "./pages/Quotation/QuotationComparison.jsx";
 import ApprovalList from "./pages/Approval/ApprovalList.jsx";
 import ApprovalDetail from "./pages/Approval/ApprovalDetail.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import POInvoice from "./pages/POInvoice.jsx";
+import Reports from "./pages/Reports.jsx";
+import { Activity } from "./pages/Activity.jsx";
 
 // ── Auth guard: check if a token is stored ────────────────────────
 function isLoggedIn() {
@@ -93,10 +97,7 @@ export default function App() {
           }
         >
           {/* Dashboard */}
-          <Route
-            path="/dashboard"
-            element={<Placeholder title="Dashboard" icon="⊞" />}
-          />
+          <Route path="/dashboard" element={<Dashboard />} />
 
           {/* Vendors */}
           <Route path="/vendors" element={<VendorList />} />
@@ -119,28 +120,18 @@ export default function App() {
           <Route path="/approvals/:id" element={<ApprovalDetail />} />
 
           {/* Purchase Orders */}
-          <Route
-            path="/purchase-orders"
-            element={<Placeholder title="Purchase Orders" icon="📦" />}
-          />
+          <Route path="/purchase-orders" element={<POInvoice />} />
+          <Route path="/purchase-orders/:id" element={<POInvoice />} />
 
           {/* Invoices */}
-          <Route
-            path="/invoices"
-            element={<Placeholder title="Invoices" icon="🧾" />}
-          />
+          <Route path="/invoices" element={<POInvoice />} />
+          <Route path="/invoices/:id" element={<POInvoice />} />
 
           {/* Reports */}
-          <Route
-            path="/reports"
-            element={<Placeholder title="Reports & Analytics" icon="📊" />}
-          />
+          <Route path="/reports" element={<Reports />} />
 
           {/* Activity */}
-          <Route
-            path="/activity"
-            element={<Placeholder title="Activity & Logs" icon="🕐" />}
-          />
+          <Route path="/activity" element={<Activity />} />
 
           {/* 404 catch-all */}
           <Route
