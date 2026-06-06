@@ -59,6 +59,12 @@ app.get("/api/v1/health", (req, res) => {
 });
 
 // ============================================
+// API Routes — versioned at /api/v1/
+// ============================================
+import rfqRouter from "./routes/rfq.routes.js";
+app.use("/api/v1/rfqs", rfqRouter);
+
+// ============================================
 // 404 Handler
 // ============================================
 app.use((req, res) => {
@@ -66,6 +72,24 @@ app.use((req, res) => {
     statusCode: 404,
     message: "Route not found",
     success: false,
+  });
+});
+
+// ============================================
+// Global Error Handler
+// Catches ApiError instances and unhandled errors
+// ============================================
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  const errors = err.errors || [];
+
+  res.status(statusCode).json({
+    statusCode,
+    message,
+    success: false,
+    errors,
+    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
   });
 });
 
