@@ -109,7 +109,8 @@ export default function App() {
           <Route path="/rfqs/:id" element={<RFQDetail />} />
 
           {/* Quotations — /compare must come before /:id */}
-          <Route path="/quotations" element={<QuotationList />} />
+          {/* /quotations (no rfqId) redirects to /rfqs — users reach quotations via RFQ detail */}
+          <Route path="/quotations" element={<Navigate to="/rfqs" replace />} />
           <Route path="/quotations/compare" element={<QuotationComparison />} />
           {/* /quotations/:id — single quotation view not needed separately,
               redirect back to the list for that RFQ */}

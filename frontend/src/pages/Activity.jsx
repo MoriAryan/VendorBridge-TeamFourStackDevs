@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
 import './Activity.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -180,7 +179,11 @@ export const Activity = () => {
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo)   params.set('dateTo', dateTo);
 
-      const res  = await fetch(`/api/v1/activity-logs/grouped?${params}`);
+      const res  = await fetch(`http://localhost:5000/api/v1/activity-logs/grouped?${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+        },
+      });
       const json = await res.json();
       if (json.success) { setGroups(json.data.groups || []); setTotal(json.data.total || 0); }
       else throw new Error(json.message || 'Failed to fetch');
@@ -216,8 +219,7 @@ export const Activity = () => {
   const clearAll = () => { setStatus('All'); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo(''); setSearch(''); };
 
   return (
-    <div className="act-layout">
-      <Sidebar />
+    <div>
       <main className="act-main">
 
         {/* ── Header ─────────────────────────────────────────────────── */}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from '../components/Sidebar';
 import './Reports.css';
+
+const BASE = 'http://localhost:5000';
+const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 function fmt(n)  { return Number(n || 0).toLocaleString('en-IN'); }
 function fmtL(n) {
@@ -252,7 +254,7 @@ export default function Reports() {
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch('/api/v1/analytics/summary');
+        const res  = await fetch(`${BASE}/api/v1/analytics/summary`, { headers: authH() });
         const json = await res.json();
         if (!json.success) throw new Error(json.message);
         setData(json.data);
@@ -264,14 +266,13 @@ export default function Reports() {
   const handleCSV = () => { setExp('csv'); exportCSV(data); setTimeout(() => setExp(''), 1500); };
   const handlePDF = () => { setExp('pdf'); setTimeout(() => { exportPDF(); setExp(''); }, 300); };
 
-  if (loading) return (<div className="rp-layout"><Sidebar /><main className="rp-main"><div className="rp-loader">Loading analytics…</div></main></div>);
-  if (error)   return (<div className="rp-layout"><Sidebar /><main className="rp-main"><div className="rp-error">⚠ {error}<p>Run <code>/api/v1/seed?force=1</code></p></div></main></div>);
+  if (loading) return (<div><main className="rp-main"><div className="rp-loader">Loading analytics…</div></main></div>);
+  if (error)   return (<div><main className="rp-main"><div className="rp-error">⚠ {error}<p>Run <code>/api/v1/seed?force=1</code></p></div></main></div>);
 
   const { kpis, spendByCategory, invoiceStatusDist, topVendors, monthlyTrend, pipeline } = data;
 
   return (
-    <div className="rp-layout">
-      <Sidebar />
+    <div>
       <main className="rp-main" id="rp-print-area">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}

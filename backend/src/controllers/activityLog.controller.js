@@ -2,21 +2,18 @@ import { ActivityLog } from "../models/activityLog.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+// ======================================================================
 // GET /api/v1/activity-logs
-// Supports: search, actionType, entityType, dateFrom, dateTo, minAmount, maxAmount, page, limit
+// Lists all activity logs, newest first. Supports search + date filters.
+// ======================================================================
 const getActivityLogs = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 50, actionType, entityType, search, dateFrom, dateTo, minAmount, maxAmount } = req.query;
+  const { page = 1, limit = 50, entityType, search, dateFrom, dateTo } = req.query;
 
   const query = {};
-
-  if (actionType && actionType !== 'All Actions') query.actionType = actionType;
-  if (entityType && entityType !== 'All Types')   query.entityType = entityType;
+  if (entityType && entityType !== "All") query.entityType = entityType;
 
   if (search) {
-    query.$or = [
-      { description: { $regex: search, $options: 'i' } },
-      { entityId:    { $regex: search, $options: 'i' } },
-    ];
+    query.action = { $regex: search, $options: "i" };
   }
 
   if (dateFrom || dateTo) {
@@ -25,39 +22,38 @@ const getActivityLogs = asyncHandler(async (req, res) => {
     if (dateTo)   query.createdAt.$lte = new Date(new Date(dateTo).setHours(23, 59, 59, 999));
   }
 
-  // Filter by amount embedded in metadata
-  if (minAmount || maxAmount) {
-    query['metadata.grandTotal'] = {};
-    if (minAmount) query['metadata.grandTotal'].$gte = Number(minAmount);
-    if (maxAmount) query['metadata.grandTotal'].$lte = Number(maxAmount);
-  }
-
   const skip  = (parseInt(page) - 1) * parseInt(limit);
   const total = await ActivityLog.countDocuments(query);
 
   const activities = await ActivityLog.find(query)
+    .populate("performedBy", "name email role")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
 
   return res.status(200).json(
-    new ApiResponse(200, { activities, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) }, "Activity logs retrieved successfully")
+    new ApiResponse(200, {
+      activities,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    }, "Activity logs retrieved successfully")
   );
 });
 
+// ======================================================================
 // GET /api/v1/activity-logs/grouped
-// Returns logs grouped by entityId, each group sorted chronologically
+// Groups logs by entityId + entityType so the Activity page can show
+// procurement timelines (one card per entity, expandable history).
+// Maps our schema fields to what Activity.jsx expects.
+// ======================================================================
 const getGroupedActivityLogs = asyncHandler(async (req, res) => {
-  const { actionType, entityType, search, dateFrom, dateTo } = req.query;
+  const { search, dateFrom, dateTo } = req.query;
 
   const match = {};
-  if (actionType && actionType !== 'All Actions') match.actionType = actionType;
-  if (entityType && entityType !== 'All Types')   match.entityType = entityType;
+
   if (search) {
-    match.$or = [
-      { description: { $regex: search, $options: 'i' } },
-      { entityId:    { $regex: search, $options: 'i' } },
-    ];
+    match.action = { $regex: search, $options: "i" };
   }
   if (dateFrom || dateTo) {
     match.createdAt = {};
@@ -70,28 +66,46 @@ const getGroupedActivityLogs = asyncHandler(async (req, res) => {
     { $sort: { createdAt: 1 } },
     {
       $group: {
-        _id:       '$entityId',
-        entityType: { $first: '$entityType' },
-        logs:       { $push: '$$ROOT' },
-        latestAt:   { $last: '$createdAt' },
-        // Grab description from the first REQUEST_CREATED or first log
-        firstDesc:  { $first: '$description' },
-        // Try to pull grandTotal from metadata
-        grandTotal: { $max: '$metadata.grandTotal' },
-        amount:     { $max: '$metadata.amount' },
+        _id:        "$entityId",
+        entityType: { $first: "$entityType" },
+        latestAt:   { $last: "$createdAt" },
+        // Map our fields to what Activity.jsx expects
+        logs: {
+          $push: {
+            _id:        "$_id",
+            actionType: "$action",      // Activity.jsx reads .actionType
+            description: "$action",     // Activity.jsx reads .description
+            entityType: "$entityType",
+            entityId:   "$entityId",
+            metadata:   "$details",     // Activity.jsx reads .metadata
+            createdAt:  "$createdAt",
+          }
+        },
+        amount: { $max: "$details.totalAmount" },
       }
     },
     { $sort: { latestAt: -1 } },
   ]);
 
-  return res.status(200).json(
-    new ApiResponse(200, { groups, total: groups.length }, "Grouped activity logs retrieved")
-  );
+  return res.status(200).json({
+    success: true,
+    data: { groups, total: groups.length },
+  });
 });
 
+// ======================================================================
+// GET /api/v1/activity-logs/recent
+// Returns 10 most recent logs (for dashboard feed).
+// ======================================================================
 const getRecentActivities = asyncHandler(async (req, res) => {
-  const activities = await ActivityLog.find().sort({ createdAt: -1 }).limit(10);
-  return res.status(200).json(new ApiResponse(200, activities, "Recent activities retrieved successfully"));
+  const activities = await ActivityLog.find()
+    .populate("performedBy", "name role")
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+  return res.status(200).json(
+    new ApiResponse(200, activities, "Recent activities retrieved successfully")
+  );
 });
 
 export { getActivityLogs, getGroupedActivityLogs, getRecentActivities };

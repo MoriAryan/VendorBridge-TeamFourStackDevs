@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
 import EmailModal from '../components/EmailModal';
 import { generateInvoicePDF } from '../utils/generateInvoicePDF';
 import './POInvoice.css';
+
+const BASE = 'http://localhost:5000';
+const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 function fmt(n) { return Number(n || 0).toLocaleString('en-IN'); }
 function fmtDate(d) {
@@ -99,7 +101,7 @@ export default function POInvoice() {
   const fetchList = async () => {
     try {
       setListLoading(true);
-      const res  = await fetch('/api/v1/invoices');
+      const res  = await fetch(`${BASE}/api/v1/invoices`, { headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
       setList(json.data);
@@ -125,7 +127,7 @@ export default function POInvoice() {
       setError('');
       setData(null);
 
-      const res  = await fetch(`/api/v1/invoices/${invoiceId}`);
+      const res  = await fetch(`${BASE}/api/v1/invoices/${invoiceId}`, { headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
 
@@ -160,7 +162,7 @@ export default function POInvoice() {
   const handleMarkPaid = async () => {
     setSubmitting(true);
     try {
-      const res  = await fetch(`/api/v1/invoices/${data.invoice._id}/mark-paid`, { method: 'PATCH' });
+      const res  = await fetch(`${BASE}/api/v1/invoices/${data.invoice._id}/mark-paid`, { method: 'PATCH', headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
       const updated = { ...data.invoice, status: 'Paid', paidAt: json.data.paidAt };
@@ -185,8 +187,7 @@ export default function POInvoice() {
   const statusLabel = { Sent: 'Pending Payment', Paid: 'Paid', Overdue: 'Overdue', Generated: 'Generated' }[status] || status;
 
   return (
-    <div className="pi-layout">
-      <Sidebar />
+    <div>
 
       {/* Invoice list panel */}
       <InvoiceList

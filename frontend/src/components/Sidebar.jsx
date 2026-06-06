@@ -4,7 +4,7 @@ const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: "⊞" },
   { path: "/vendors", label: "Vendors", icon: "🏢" },
   { path: "/rfqs", label: "RFQ's", icon: "📋" },
-  { path: "/quotations", label: "Quotations", icon: "💬" },
+  { path: "/rfqs", label: "Quotations", icon: "💬" },
   { path: "/approvals", label: "Approvals", icon: "✅" },
   { path: "/purchase-orders", label: "Purchase Orders", icon: "📦" },
   { path: "/invoices", label: "Invoices", icon: "🧾" },
