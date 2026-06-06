@@ -8,6 +8,7 @@ import authRouter       from "./routes/auth.routes.js";
 import rfqRouter        from "./routes/rfq.routes.js";
 import vendorRouter     from "./routes/vendor.routes.js";
 import quotationRouter  from "./routes/quotation.routes.js";
+import approvalRouter   from "./routes/approval.routes.js";
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use("/api/v1/auth",        authRouter);
 app.use("/api/v1/rfqs",        rfqRouter);
 app.use("/api/v1/vendors",     vendorRouter);
 app.use("/api/v1/quotations",  quotationRouter);
+app.use("/api/v1/approvals",   approvalRouter);
 
 // ============================================
 // 404 Handler

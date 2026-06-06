@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { compareQuotations, selectQuotation } from "../../api/quotation.api.js";
+import { createApproval } from "../../api/approval.api.js";
 
 // ── Helpers ────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -181,6 +182,8 @@ export default function QuotationComparison() {
   const [selectLoading, setSelectLoading] = useState(false);
   const [selectError, setSelectError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [winnerQuotationId, setWinnerQuotationId] = useState(null);
+  const [approvalLoading, setApprovalLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -210,6 +213,7 @@ export default function QuotationComparison() {
     setSelectError("");
     try {
       await selectQuotation(confirmTarget.quotationId);
+      setWinnerQuotationId(confirmTarget.quotationId);
       setConfirmTarget(null);
       setSuccessMsg(`🏆 ${confirmTarget.vendorName} has been selected. The RFQ is now closed.`);
       loadData();
@@ -217,6 +221,19 @@ export default function QuotationComparison() {
       setSelectError(err.message || "Failed to select quotation.");
     } finally {
       setSelectLoading(false);
+    }
+  };
+
+  const handleSendToApproval = async () => {
+    if (!winnerQuotationId) return;
+    setApprovalLoading(true);
+    try {
+      const res = await createApproval({ quotationId: winnerQuotationId });
+      navigate(`/approvals/${res.data._id}`);
+    } catch (err) {
+      setSelectError(err.message || "Failed to create approval request.");
+    } finally {
+      setApprovalLoading(false);
     }
   };
 
@@ -294,8 +311,21 @@ export default function QuotationComparison() {
           padding: "14px 18px", borderRadius: "var(--radius-inner)", marginBottom: "20px",
           background: "rgba(56,178,172,0.1)", color: "var(--accent-secondary)", fontWeight: 600,
           boxShadow: "var(--shadow-inset-sm)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+          flexWrap: "wrap",
         }}>
-          {successMsg}
+          <span>{successMsg}</span>
+          {winnerQuotationId && (
+            <button
+              className="btn btn-primary"
+              style={{ fontSize: "0.875rem", whiteSpace: "nowrap" }}
+              onClick={handleSendToApproval}
+              disabled={approvalLoading}
+              id="send-to-approval-btn"
+            >
+              {approvalLoading ? "Creating..." : "✅ Send to Approval →"}
+            </button>
+          )}
         </div>
       )}
       {selectError && (

@@ -8,6 +8,8 @@ import VendorList from "./pages/Vendor/VendorList.jsx";
 import VendorDetail from "./pages/Vendor/VendorDetail.jsx";
 import QuotationList from "./pages/Quotation/QuotationList.jsx";
 import QuotationComparison from "./pages/Quotation/QuotationComparison.jsx";
+import ApprovalList from "./pages/Approval/ApprovalList.jsx";
+import ApprovalDetail from "./pages/Approval/ApprovalDetail.jsx";
 
 // ── Auth guard: check if a token is stored ────────────────────────
 function isLoggedIn() {
@@ -105,16 +107,16 @@ export default function App() {
           <Route path="/rfqs/create" element={<CreateRFQ />} />
           <Route path="/rfqs/:id" element={<RFQDetail />} />
 
-          {/* Quotations — must put /compare before /:id */}
+          {/* Quotations — /compare must come before /:id */}
           <Route path="/quotations" element={<QuotationList />} />
           <Route path="/quotations/compare" element={<QuotationComparison />} />
+          {/* /quotations/:id — single quotation view not needed separately,
+              redirect back to the list for that RFQ */}
           <Route path="/quotations/:id" element={<QuotationList />} />
 
           {/* Approvals */}
-          <Route
-            path="/approvals"
-            element={<Placeholder title="Approval Workflow" icon="✅" />}
-          />
+          <Route path="/approvals" element={<ApprovalList />} />
+          <Route path="/approvals/:id" element={<ApprovalDetail />} />
 
           {/* Purchase Orders */}
           <Route

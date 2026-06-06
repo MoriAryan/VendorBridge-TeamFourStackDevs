@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { getQuotationsByRFQ, submitQuotation } from "../../api/quotation.api.js";
 import { getRFQById } from "../../api/rfq.api.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 // ── Helpers ────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -372,7 +373,9 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
 // ── Main QuotationList Component ───────────────────────────────────
 export default function QuotationList() {
   const [searchParams] = useSearchParams();
-  const rfqId = searchParams.get("rfqId");
+  const { id: routeId } = useParams();
+  // Support both /quotations?rfqId=xxx  and  /quotations/:id
+  const rfqId = searchParams.get("rfqId") || routeId || null;
   const navigate = useNavigate();
 
   const [rfq, setRfq] = useState(null);
@@ -382,17 +385,8 @@ export default function QuotationList() {
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [myQuotation, setMyQuotation] = useState(null);
 
-  // Get current user role from localStorage token
-  const currentUser = (() => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) return null;
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload;
-    } catch {
-      return null;
-    }
-  })();
+  // Correct URL-safe base64 JWT decode
+  const currentUser = getCurrentUser();
   const isVendor = currentUser?.role === "vendor";
   const isOfficer = currentUser?.role === "procurement_officer" || currentUser?.role === "admin";
 
