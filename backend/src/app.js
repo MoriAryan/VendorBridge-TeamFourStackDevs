@@ -59,6 +59,12 @@ app.get("/api/v1/health", (req, res) => {
 });
 
 // ============================================
+// Feature Routes
+// ============================================
+import activityLogRouter from "./routes/activityLog.routes.js";
+app.use("/api/v1/activity-logs", activityLogRouter);
+
+// ============================================
 // 404 Handler
 // ============================================
 app.use((req, res) => {
