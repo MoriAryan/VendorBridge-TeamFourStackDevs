@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Reports.css';
 
-const BASE = 'http://localhost:5000';
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000");
 const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 function fmt(n)  { return Number(n || 0).toLocaleString('en-IN'); }

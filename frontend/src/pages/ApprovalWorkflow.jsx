@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth.js';
 import './ApprovalWorkflow.css';
 
-const BASE = 'http://localhost:5000';
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000");
 const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 const STEPS = ['Submitted', 'L1 Review', 'L2 Approval', 'Generate PO'];

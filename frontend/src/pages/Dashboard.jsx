@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
-const BASE = 'http://localhost:5000';
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000");
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 function fmt(n)  { return Number(n || 0).toLocaleString('en-IN'); }

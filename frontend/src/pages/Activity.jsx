@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Activity.css';
 
-const BASE = 'http://localhost:5000';
+const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000");
 const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 function fmtDate(d) {
