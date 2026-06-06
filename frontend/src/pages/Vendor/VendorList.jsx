@@ -229,7 +229,7 @@ function AddVendorModal({ onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div className="res-grid-2" style={{ gap: "16px" }}>
             {/* Contact Name */}
             <div className="form-group">
               <label className="form-label" htmlFor="v-name">

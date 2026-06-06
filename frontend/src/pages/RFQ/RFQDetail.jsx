@@ -236,7 +236,7 @@ export default function RFQDetail() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+      <div className="res-grid-2" style={{ gap: "24px" }}>
         {/* Left Column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 

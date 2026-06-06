@@ -99,10 +99,7 @@ function QuotationCard({ q, rank, onView }) {
       </div>
 
       {/* Price summary */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "12px", marginBottom: "16px",
-      }}>
+      <div className="res-grid-3" style={{ gap: "16px", marginBottom: "16px" }}>
         {[
           { label: "Subtotal", value: fmt(q.subtotal) },
           { label: `Tax (${q.taxPercent || 0}%)`, value: fmt(q.taxAmount) },
@@ -229,11 +226,11 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
           <table>
             <thead>
               <tr>
-                <th>Item</th>
-                <th style={{ textAlign: "right" }}>Qty</th>
-                <th>Unit</th>
-                <th style={{ textAlign: "right" }}>Unit Price (₹) *</th>
-                <th style={{ textAlign: "right" }}>Total</th>
+                <th style={{ minWidth: "150px" }}>Item</th>
+                <th style={{ minWidth: "80px", textAlign: "right" }}>Qty</th>
+                <th style={{ minWidth: "100px" }}>Unit</th>
+                <th style={{ minWidth: "120px", textAlign: "right" }}>Unit Price (₹) *</th>
+                <th style={{ minWidth: "100px", textAlign: "right" }}>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -274,7 +271,7 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
         </div>
 
         {/* Extra fields */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+        <div className="res-grid-3" style={{ gap: "16px", marginBottom: "16px" }}>
           <div className="form-group">
             <label className="form-label" htmlFor="tax-percent">Tax %</label>
             <input

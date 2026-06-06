@@ -397,12 +397,14 @@ export default function QuotationComparison() {
       {/* Key metrics comparison */}
       <div className="card" style={{ padding: "24px", marginBottom: "24px" }}>
         <h3 style={{ marginBottom: "20px", fontSize: "1rem" }}>📊 Side-by-Side Summary</h3>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: `200px ${summary.map(() => "minmax(200px, 1fr)").join(" ")}`,
-          gap: "12px", alignItems: "center",
-        }}>
-          {/* Row 1: Headers */}
+        <div className="table-wrapper">
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: `200px ${summary.map(() => "minmax(200px, 1fr)").join(" ")}`,
+            gap: "12px", alignItems: "center",
+            minWidth: "max-content"
+          }}>
+            {/* Row 1: Headers */}
           <div></div> {/* Empty top-left cell */}
           {summary.map((q) => (
             <div key={q.quotationId} style={{ alignSelf: "end" }}>
@@ -446,6 +448,7 @@ export default function QuotationComparison() {
               );
             })
           ])}
+          </div>
         </div>
       </div>
 

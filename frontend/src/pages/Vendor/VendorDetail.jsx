@@ -237,7 +237,7 @@ export default function VendorDetail() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "24px", alignItems: "start" }}>
+      <div className="res-grid-sidebar" style={{ gap: "24px", alignItems: "start" }}>
         {/* Left — Profile Details */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           <div className="card" style={{ padding: "28px" }}>
@@ -246,7 +246,7 @@ export default function VendorDetail() {
             </h3>
 
             {!editing ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div className="res-grid-2" style={{ gap: "16px" }}>
                 <InfoField label="Contact Name" value={vendor.name} />
                 <InfoField label="Email Address" value={vendor.email} />
                 <InfoField label="Company Name" value={vendor.companyName} />
@@ -257,7 +257,7 @@ export default function VendorDetail() {
                 <InfoField label="Member Since" value={vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null} />
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div className="res-grid-2" style={{ gap: "16px" }}>
                 {[
                   { id: "edit-name", label: "Contact Name", field: "name", placeholder: "Rahul Mehta" },
                   { id: "edit-company", label: "Company Name", field: "companyName", placeholder: "Infra Supplies Pvt Ltd", fullWidth: true },

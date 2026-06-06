@@ -281,7 +281,7 @@ export default function ApprovalDetail() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "24px" }}>
+      <div className="res-grid-weighted" style={{ gap: "24px" }}>
         {/* Left — Approval Chain + Decision Panel */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 

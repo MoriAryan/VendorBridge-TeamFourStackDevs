@@ -80,10 +80,10 @@ function LineItemsTable({ lineItems, onChange }) {
         <table>
           <thead>
             <tr>
-              <th style={{ width: "40%" }}>Item</th>
-              <th style={{ width: "15%" }}>Qty</th>
-              <th style={{ width: "20%" }}>Unit</th>
-              <th style={{ width: "10%", textAlign: "center" }}>Remove</th>
+              <th style={{ minWidth: "200px" }}>Item</th>
+              <th style={{ width: "100px", minWidth: "100px" }}>Qty</th>
+              <th style={{ width: "130px", minWidth: "130px" }}>Unit</th>
+              <th style={{ width: "80px", minWidth: "80px", textAlign: "center" }}>Remove</th>
             </tr>
           </thead>
           <tbody>
@@ -316,7 +316,7 @@ function Step1({ form, onChange, errors }) {
         />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
+      <div className="res-grid-2" style={{ gap: "32px" }}>
         {/* LEFT COLUMN — Core Details */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* RFQ Title */}
@@ -544,7 +544,7 @@ function Step1({ form, onChange, errors }) {
 // ── Step 2 — Review ─────────────────────────────────────────────────
 function Step2({ form }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
+    <div className="res-grid-2" style={{ gap: "32px" }}>
       {/* Left — Core details */}
       <div className="card" style={{ padding: "24px" }}>
         <h3 style={{ marginBottom: "20px", fontSize: "1rem" }}>📋 RFQ Details</h3>

@@ -191,7 +191,7 @@ function RegisterForm({ onSuccess }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <div className="res-grid-2" style={{ gap: "16px" }}>
         <Field
           id="reg-name"
           label="Full Name"

@@ -304,9 +304,10 @@ export default function PurchaseOrder() {
                   <table className="pi-table">
                     <thead>
                       <tr>
-                        <th>Item</th><th>Qty</th>
-                        <th style={{ textAlign: 'right' }}>Unit Price (Rs.)</th>
-                        <th style={{ textAlign: 'right' }}>Total (Rs.)</th>
+                        <th style={{ minWidth: "150px" }}>Item</th>
+                        <th style={{ minWidth: "80px" }}>Qty</th>
+                        <th style={{ minWidth: "120px", textAlign: 'right' }}>Unit Price (Rs.)</th>
+                        <th style={{ minWidth: "120px", textAlign: 'right' }}>Total (Rs.)</th>
                       </tr>
                     </thead>
                     <tbody>
