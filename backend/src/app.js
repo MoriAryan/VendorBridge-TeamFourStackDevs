@@ -48,7 +48,15 @@ app.use('/api/v1/invoices',        invoiceRoutes);
 // ── Analytics (read-only aggregation) ────────────────────────
 app.get('/api/v1/analytics/summary', getAnalyticsSummary);
 
-// ── 404 ───────────────────────────────────────────────────────
+// ============================================
+// Feature Routes
+// ============================================
+import activityLogRouter from "./routes/activityLog.routes.js";
+app.use("/api/v1/activity-logs", activityLogRouter);
+
+// ============================================
+// 404 Handler
+// ============================================
 app.use((req, res) => {
   res.status(404).json({ statusCode: 404, message: 'Route not found', success: false });
 });

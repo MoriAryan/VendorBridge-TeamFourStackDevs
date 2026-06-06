@@ -3,6 +3,7 @@ import Dashboard        from './pages/Dashboard';
 import ApprovalWorkflow from './pages/ApprovalWorkflow';
 import POInvoice        from './pages/POInvoice';
 import Reports          from './pages/Reports';
+import { Activity }     from './pages/Activity';
 
 export default function App() {
   return (
@@ -24,6 +25,9 @@ export default function App() {
 
         {/* Screen 11 — Reports & Analytics */}
         <Route path="/reports" element={<Reports />} />
+
+        {/* Activity Log */}
+        <Route path="/activity" element={<Activity />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
