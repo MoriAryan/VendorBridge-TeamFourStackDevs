@@ -1,11 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout.jsx";
+import AuthPage from "./pages/Auth/AuthPage.jsx";
 import RFQList from "./pages/RFQ/RFQList.jsx";
 import CreateRFQ from "./pages/RFQ/CreateRFQ.jsx";
 import RFQDetail from "./pages/RFQ/RFQDetail.jsx";
 
-// ── Placeholder components for other modules ─────────────────────
-// These will be replaced by full implementations in future sprints
+// ── Auth guard: check if a token is stored ────────────────────────
+function isLoggedIn() {
+  return !!localStorage.getItem("accessToken");
+}
+
+// ── Protected Route: redirects to /login if not authenticated ────
+function ProtectedRoute({ children }) {
+  if (!isLoggedIn()) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+// ── Placeholder components for future modules ─────────────────────
 function Placeholder({ title, icon }) {
   return (
     <div>
@@ -17,10 +30,7 @@ function Placeholder({ title, icon }) {
       </div>
       <div
         className="card"
-        style={{
-          padding: "60px",
-          textAlign: "center",
-        }}
+        style={{ padding: "60px", textAlign: "center" }}
       >
         <div
           style={{
@@ -52,11 +62,30 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/rfqs" replace />} />
+        {/* Auth routes — accessible without login */}
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
 
-        {/* Main app shell with sidebar + topbar */}
-        <Route element={<MainLayout />}>
+        {/* Default redirect */}
+        <Route
+          path="/"
+          element={
+            isLoggedIn() ? (
+              <Navigate to="/rfqs" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* Main app shell — all protected */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           {/* Dashboard */}
           <Route
             path="/dashboard"

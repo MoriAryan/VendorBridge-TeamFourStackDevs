@@ -61,7 +61,10 @@ app.get("/api/v1/health", (req, res) => {
 // ============================================
 // API Routes — versioned at /api/v1/
 // ============================================
+import authRouter from "./routes/auth.routes.js";
 import rfqRouter from "./routes/rfq.routes.js";
+
+app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/rfqs", rfqRouter);
 
 // ============================================
