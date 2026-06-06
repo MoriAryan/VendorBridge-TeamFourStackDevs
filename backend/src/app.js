@@ -20,7 +20,13 @@ import { getAnalyticsSummary } from "./controllers/analytics.controller.js";
 const app = express();
 
 // ── CORS ──────────────────────────────────────────────────────────
-app.use(cors({ origin: true, credentials: true }));
+const frontendOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.CORS_ORIGIN,
+].filter(Boolean);
+
+app.use(cors({ origin: frontendOrigins, credentials: true }));
 
 // ── Body Parsers ──────────────────────────────────────────────────
 app.use(express.json({ limit: "16kb" }));
