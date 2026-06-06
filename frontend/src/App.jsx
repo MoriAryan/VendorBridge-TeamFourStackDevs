@@ -4,7 +4,7 @@ export default function App() {
   const [status, setStatus] = useState({ api: "loading", db: "loading" });
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/health")
+    fetch("/api/v1/health")
       .then((response) => response.json())
       .then((data) => {
         setStatus({ api: data.api || "unknown", db: data.db || "unknown" });
