@@ -217,7 +217,7 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
   return (
     <div className="card" style={{ padding: "28px" }}>
       <h3 style={{ marginBottom: "6px", fontSize: "1rem" }}>
-        {existingQuotation ? "✏️ Update Your Quotation" : "📝 Submit Your Quotation"}
+        {existingQuotation ? "✏️ Update Your Quotation" : " Submit Your Quotation"}
       </h3>
       <p style={{ marginBottom: "24px", fontSize: "0.875rem" }}>
         Fill in your prices for the requested items. You can update this before the deadline.
@@ -352,7 +352,7 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
             background: "rgba(229,62,62,0.08)", color: "var(--accent-danger)",
             fontSize: "0.875rem", marginBottom: "16px",
           }}>
-            ⚠ {error}
+            {error}
           </div>
         )}
 
@@ -363,7 +363,7 @@ function SubmitQuotationForm({ rfq, existingQuotation, onSuccess }) {
           id="submit-quotation-btn"
           style={{ minWidth: "200px" }}
         >
-          {loading ? "Submitting..." : existingQuotation ? "✓ Update Quotation" : "🚀 Submit Quotation"}
+          {loading ? "Submitting..." : existingQuotation ? "✓ Update Quotation" : "Submit Quotation"}
         </button>
       </form>
     </div>
@@ -420,9 +420,35 @@ export default function QuotationList() {
   };
 
   useEffect(() => {
-    if (!rfqId) { navigate("/rfqs"); return; }
-    loadData();
+    if (rfqId) {
+      loadData();
+    }
   }, [rfqId]);
+
+  if (!rfqId) {
+    return (
+      <div style={{ padding: "80px", textAlign: "center", maxWidth: "500px", margin: "40px auto" }}>
+        <div style={{
+          width: "80px", height: "80px", borderRadius: "50%",
+          background: "var(--bg)", boxShadow: "var(--shadow-extruded)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "2.5rem", margin: "0 auto 24px",
+        }}>💬</div>
+        <h2 style={{ marginBottom: "12px", fontSize: "1.5rem" }}>Select an RFQ</h2>
+        <p style={{ color: "var(--muted)", marginBottom: "32px", lineHeight: "1.6" }}>
+          Quotations are linked to specific Requests for Quotation (RFQs). 
+          Please select an RFQ from the list to view or compare its quotations.
+        </p>
+        <button 
+          className="btn btn-primary" 
+          onClick={() => navigate("/rfqs")}
+          style={{ padding: "12px 24px", fontSize: "1rem" }}
+        >
+          View RFQs
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -435,7 +461,7 @@ export default function QuotationList() {
   if (error) {
     return (
       <div className="card" style={{ padding: "48px", textAlign: "center", maxWidth: "480px", margin: "60px auto" }}>
-        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>⚠ {error}</p>
+        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>{error}</p>
         <button className="btn btn-primary" onClick={() => navigate("/rfqs")}>← Back to RFQs</button>
       </div>
     );
@@ -478,7 +504,7 @@ export default function QuotationList() {
               onClick={() => setShowSubmitForm(!showSubmitForm)}
               id="toggle-submit-form-btn"
             >
-              {showSubmitForm ? "✕ Cancel" : myQuotation ? "✏️ Update Quotation" : "📝 Submit Quotation"}
+              {showSubmitForm ? "✕ Cancel" : myQuotation ? "✏️ Update Quotation" : " Submit Quotation"}
             </button>
           )}
           {isOfficer && quotations.length > 1 && rfq?.status === "Open" && (
@@ -523,7 +549,7 @@ export default function QuotationList() {
           </p>
           {isVendor && rfq?.status === "Open" && (
             <button className="btn btn-primary" style={{ marginTop: "20px" }} onClick={() => setShowSubmitForm(true)}>
-              📝 Submit Quotation
+               Submit Quotation
             </button>
           )}
         </div>

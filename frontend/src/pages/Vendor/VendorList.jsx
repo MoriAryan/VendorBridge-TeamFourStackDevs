@@ -5,6 +5,7 @@ import {
   createVendor,
   updateVendorStatus,
 } from "../../api/vendor.api.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 const STATUS_FILTERS = ["All", "Active", "Inactive", "Blocked"];
@@ -370,7 +371,7 @@ function AddVendorModal({ onClose, onSuccess }) {
                 boxShadow: "var(--shadow-inset-sm)",
               }}
             >
-              ⚠ {apiError}
+              {apiError}
             </div>
           )}
 
@@ -512,7 +513,7 @@ function StatusModal({ vendor, onClose, onSuccess }) {
               marginBottom: "16px",
             }}
           >
-            ⚠ {error}
+            {error}
           </div>
         )}
 
@@ -633,15 +634,17 @@ function VendorRow({ vendor, onView, onStatusChange }) {
           >
             View
           </button>
-          <button
-            className="btn btn-secondary"
-            style={{ padding: "6px 12px", fontSize: "0.8125rem", minHeight: "34px" }}
-            onClick={() => onStatusChange(vendor)}
-            id={`vendor-status-btn-${vendor._id}`}
-            aria-label={`Change status of ${vendor.companyName}`}
-          >
-            ⚙
-          </button>
+          {onStatusChange && (
+            <button
+              className="btn btn-secondary"
+              style={{ padding: "6px 12px", fontSize: "0.8125rem", minHeight: "34px" }}
+              onClick={() => onStatusChange(vendor)}
+              id={`vendor-status-btn-${vendor._id}`}
+              aria-label={`Change status of ${vendor.companyName}`}
+            >
+              ⚙
+            </button>
+          )}
         </div>
       </td>
     </tr>
@@ -660,6 +663,9 @@ export default function VendorList() {
   const [fetchError, setFetchError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [statusModal, setStatusModal] = useState(null); // vendor object
+
+  const currentUser = getCurrentUser();
+  const canManage = currentUser && ["admin", "procurement_officer"].includes(currentUser.role);
 
   const fetchData = async () => {
     setLoading(true);
@@ -724,13 +730,15 @@ export default function VendorList() {
           <h1>Vendors</h1>
           <p>Manage supplier profiles, registrations, and procurement relationships</p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowAddModal(true)}
-          id="add-vendor-btn"
-        >
-          + Add Vendor
-        </button>
+        {canManage && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddModal(true)}
+            id="add-vendor-btn"
+          >
+            + Add Vendor
+          </button>
+        )}
       </div>
 
       {/* KPI Stats */}
@@ -750,7 +758,7 @@ export default function VendorList() {
             fontWeight: 500,
           }}
         >
-          ⚠ {fetchError}
+          {fetchError}
         </div>
       )}
 
@@ -868,7 +876,7 @@ export default function VendorList() {
                   : "Add your first vendor to start building your supplier network."}
               </p>
             </div>
-            {!search && activeFilter === "All" && (
+            {!search && activeFilter === "All" && canManage && (
               <button
                 className="btn btn-primary"
                 onClick={() => setShowAddModal(true)}
@@ -897,7 +905,7 @@ export default function VendorList() {
                     key={vendor._id}
                     vendor={vendor}
                     onView={(id) => navigate(`/vendors/${id}`)}
-                    onStatusChange={(v) => setStatusModal(v)}
+                    onStatusChange={canManage ? (v) => setStatusModal(v) : null}
                   />
                 ))}
               </tbody>

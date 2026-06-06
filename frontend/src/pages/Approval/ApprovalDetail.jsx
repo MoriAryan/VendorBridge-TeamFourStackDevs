@@ -105,7 +105,7 @@ function DecisionPanel({ approvalId, level, onSuccess }) {
   return (
     <div className="card" style={{ padding: "24px" }}>
       <h3 style={{ fontSize: "1rem", marginBottom: "16px" }}>
-        📝 Your Decision — Level {level}
+         Your Decision — Level {level}
       </h3>
 
       <div className="form-group" style={{ marginBottom: "16px" }}>
@@ -129,7 +129,7 @@ function DecisionPanel({ approvalId, level, onSuccess }) {
           background: "rgba(229,62,62,0.08)", color: "var(--accent-danger)",
           fontSize: "0.875rem", marginBottom: "16px",
         }}>
-          ⚠ {error}
+          {error}
         </div>
       )}
 
@@ -207,7 +207,7 @@ export default function ApprovalDetail() {
   if (error || !approval) {
     return (
       <div className="card" style={{ padding: "48px", textAlign: "center", maxWidth: "480px", margin: "60px auto" }}>
-        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>⚠ {error || "Approval not found"}</p>
+        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>{error || "Approval not found"}</p>
         <button className="btn btn-primary" onClick={() => navigate("/approvals")}>
           ← Back to Approvals
         </button>
@@ -222,6 +222,16 @@ export default function ApprovalDetail() {
   // Find the active (Pending) step that can be decided
   const activeStep = approval.approvalChain?.find((s) => s.status === "Pending");
   const isPending = approval.status === "Pending";
+
+  // Determine if current user can decide the active step based on their role
+  let userCanDecideActiveStep = false;
+  if (activeStep && currentUser) {
+    if (activeStep.level === 1 && (currentUser.role === "procurement_head" || currentUser.role === "admin")) {
+      userCanDecideActiveStep = true;
+    } else if (activeStep.level === 2 && (currentUser.role === "finance_manager" || currentUser.role === "admin")) {
+      userCanDecideActiveStep = true;
+    }
+  }
 
   // Step lock logic — level N is locked if level N-1 is not Approved
   const isStepLocked = (step) => {
@@ -277,7 +287,7 @@ export default function ApprovalDetail() {
 
           {/* Chain Timeline */}
           <div className="card" style={{ padding: "24px" }}>
-            <h3 style={{ fontSize: "1rem", marginBottom: "4px" }}>🔗 Approval Chain</h3>
+            <h3 style={{ fontSize: "1rem", marginBottom: "4px" }}>Approval Chain</h3>
             <p style={{ fontSize: "0.8125rem", marginBottom: "16px" }}>
               Requested by {approval.requestedByUser?.name || "Procurement Officer"} on{" "}
               {new Date(approval.createdAt).toLocaleDateString("en-IN")}
@@ -302,7 +312,7 @@ export default function ApprovalDetail() {
           </div>
 
           {/* Decision Panel — only when pending and user can decide */}
-          {isPending && canDecide && activeStep && (
+          {isPending && userCanDecideActiveStep && activeStep && (
             <DecisionPanel
               approvalId={approval._id}
               level={activeStep.level}

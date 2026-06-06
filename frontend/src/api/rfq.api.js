@@ -80,6 +80,6 @@ export const getRFQStats = () => api.get("/rfqs/stats");
  * Get all vendors (active only) for the vendor selector
  */
 export const getVendors = (params = {}) =>
-  api.get("/users", { params: { role: "vendor", ...params } });
+  api.get("/vendors", { params: { role: "vendor", ...params } });
 
 export default api;

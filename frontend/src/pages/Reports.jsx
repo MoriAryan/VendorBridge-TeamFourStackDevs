@@ -267,7 +267,7 @@ export default function Reports() {
   const handlePDF = () => { setExp('pdf'); setTimeout(() => { exportPDF(); setExp(''); }, 300); };
 
   if (loading) return (<div><main className="rp-main"><div className="rp-loader">Loading analytics…</div></main></div>);
-  if (error)   return (<div><main className="rp-main"><div className="rp-error">⚠ {error}<p>Run <code>/api/v1/seed?force=1</code></p></div></main></div>);
+  if (error)   return (<div><main className="rp-main"><div className="rp-error">{error}<p>Run <code>/api/v1/seed?force=1</code></p></div></main></div>);
 
   const { kpis, spendByCategory, invoiceStatusDist, topVendors, monthlyTrend, pipeline } = data;
 
@@ -431,7 +431,7 @@ export default function Reports() {
               { icon: '📦', label: 'POs Generated',    count: kpis.totalPos,               color: '#9F99FF' },
               { icon: '🏁', label: 'POs Completed',   count: kpis.completedPos,            color: '#38B2AC' },
               { icon: '💰', label: 'Invoices Paid',    count: kpis.paidInvoices,            color: '#D69E2E' },
-              { icon: '⚠',  label: 'Overdue',          count: kpis.overdueInvoices,         color: '#E53E3E' },
+              { icon: '',  label: 'Overdue',          count: kpis.overdueInvoices,         color: '#E53E3E' },
             ].map((s, i) => (
               <div key={i} className="rp-lc-step">
                 <div className="rp-lc-icon">{s.icon}</div>

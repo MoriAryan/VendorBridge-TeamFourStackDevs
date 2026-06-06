@@ -5,6 +5,8 @@ import { Approval } from "../models/approval.model.js";
 import { Quotation } from "../models/quotation.model.js";
 import { RFQ } from "../models/rfq.model.js";
 import { ActivityLog } from "../models/activityLog.model.js";
+import { PurchaseOrder } from "../models/purchaseOrder.model.js";
+import { Invoice } from "../models/invoice.model.js";
 import mongoose from "mongoose";
 
 // =====================================================================
@@ -274,6 +276,20 @@ const decideApproval = asyncHandler(async (req, res) => {
     }
   }
 
+  // Role Enforcement Check
+  const userRole = req.user.role;
+  const targetLevel = parseInt(level);
+
+  if (targetLevel === 1) {
+    if (userRole !== "procurement_head" && userRole !== "admin") {
+      throw new ApiError(403, "Only users with the 'procurement_head' role can decide Level 1 (Procurement Head Review)");
+    }
+  } else if (targetLevel === 2) {
+    if (userRole !== "finance_manager" && userRole !== "admin") {
+      throw new ApiError(403, "Only users with the 'finance_manager' role can decide Level 2 (Finance Manager Approval)");
+    }
+  }
+
   // Apply decision
   step.status = decision;
   step.remarks = remarks || "";
@@ -292,6 +308,44 @@ const decideApproval = asyncHandler(async (req, res) => {
     if (allApproved) {
       approval.status = "Approved";
       approval.finalizedAt = new Date();
+
+      try {
+        const quotation = await Quotation.findById(approval.quotation).populate("vendor");
+        if (quotation) {
+          const poNumber = `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+          const po = await PurchaseOrder.create({
+            poNumber,
+            approvalId: approval._id,
+            billTo: { name: "VendorBridge Corp", address: "123 Business Rd", gstin: "27AAAAA0000A1Z5" },
+            vendor: { 
+              name: quotation.vendor?.companyName || quotation.vendor?.name || "Vendor", 
+              address: "Vendor Address", 
+              gstin: quotation.vendor?.gstNumber || "" 
+            },
+            lineItems: quotation.lineItems,
+            subtotal: quotation.subtotal,
+            cgst: (quotation.taxAmount || 0) / 2,
+            sgst: (quotation.taxAmount || 0) / 2,
+            grandTotal: quotation.totalAmount,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          });
+
+          await Invoice.create({
+            purchaseOrderId: po._id,
+            dueDate: po.dueDate,
+          });
+
+          await ActivityLog.create({
+            action: `PO ${poNumber} generated for ${quotation.vendor?.companyName || quotation.vendor?.name || "Vendor"}`,
+            entityType: "PurchaseOrder",
+            entityId: po._id,
+            performedBy: req.user._id,
+            details: { totalAmount: po.grandTotal }
+          });
+        }
+      } catch (err) {
+        console.error("Error auto-generating PO/Invoice:", err);
+      }
     }
   }
 

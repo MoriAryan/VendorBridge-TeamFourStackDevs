@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getRFQById } from "../../api/rfq.api.js";
 import { getQuotationCount } from "../../api/quotation.api.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 // ── Status Badge ───────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -40,16 +41,22 @@ function InfoRow({ label, value, accent }) {
 }
 
 // ── Procurement Timeline ───────────────────────────────────────────
-function ProcurementTimeline({ rfq, quotationCount }) {
+function ProcurementTimeline({ rfq, quotationCount, isVendor }) {
   const vendorCount = rfq.vendorDetails?.length || 0;
-  const steps = [
-    { label: "RFQ Created",        done: true,                  icon: "📋" },
-    { label: "Vendors Assigned",   done: vendorCount > 0,       icon: "🏢" },
-    { label: `Quotations Received (${quotationCount})`, done: quotationCount > 0, icon: "💬" },
-    { label: "Vendor Selected",    done: rfq.status === "Closed", icon: "✅" },
-    { label: "Approval Pending",   done: false,                 icon: "⏳" },
-    { label: "PO Generated",       done: false,                 icon: "📦" },
-  ];
+  const steps = isVendor 
+    ? [
+        { label: "RFQ Published",      done: rfq.status !== "Draft", icon: "📋" },
+        { label: "Quotation Window",   done: rfq.status === "Open",  icon: "⏳" },
+        { label: "Result Declared",    done: rfq.status === "Closed",icon: "🏆" },
+      ]
+    : [
+        { label: "RFQ Created",        done: true,                  icon: "📋" },
+        { label: "Vendors Assigned",   done: vendorCount > 0,       icon: "🏢" },
+        { label: `Quotations Received (${quotationCount})`, done: quotationCount > 0, icon: "💬" },
+        { label: "Vendor Selected",    done: rfq.status === "Closed", icon: "✅" },
+        { label: "Approval Pending",   done: false,                 icon: "⏳" },
+        { label: "PO Generated",       done: false,                 icon: "📦" },
+      ];
 
   return (
     <div className="card" style={{ padding: "24px" }}>
@@ -101,6 +108,10 @@ export default function RFQDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const currentUser = getCurrentUser();
+  const canManage = currentUser && ["admin", "procurement_officer"].includes(currentUser.role);
+  const isVendor = currentUser?.role === "vendor";
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -139,7 +150,7 @@ export default function RFQDetail() {
     return (
       <div style={{ padding: "60px 0" }}>
         <div className="card" style={{ padding: "48px", textAlign: "center", maxWidth: "480px", margin: "0 auto" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}>⚠</div>
+          <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}></div>
           <h2 style={{ marginBottom: "8px" }}>RFQ Not Found</h2>
           <p style={{ marginBottom: "24px" }}>{error}</p>
           <button className="btn btn-primary" onClick={() => navigate("/rfqs")} id="back-to-rfqs-error-btn">
@@ -177,7 +188,7 @@ export default function RFQDetail() {
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {rfq.status === "Draft" && (
+          {rfq.status === "Draft" && canManage && (
             <button className="btn btn-secondary" onClick={() => navigate(`/rfqs/${id}/edit`)} id="edit-rfq-btn">
               ✏️ Edit RFQ
             </button>
@@ -200,7 +211,7 @@ export default function RFQDetail() {
                   </span>
                 )}
               </button>
-              {quotationCount > 1 && rfq.status === "Open" && (
+              {quotationCount > 1 && rfq.status === "Open" && canManage && (
                 <button
                   className="btn btn-primary"
                   onClick={() => navigate(`/quotations/compare?rfqId=${id}`)}
@@ -221,7 +232,7 @@ export default function RFQDetail() {
           background: "rgba(229,62,62,0.08)", color: "var(--accent-danger)",
           fontSize: "0.875rem", fontWeight: 500, marginBottom: "20px",
         }}>
-          ⚠ This RFQ's deadline has passed. Consider closing it.
+          This RFQ's deadline has passed. Consider closing it.
         </div>
       )}
 
@@ -261,8 +272,9 @@ export default function RFQDetail() {
             </div>
           </div>
 
-          {/* Assigned Vendors */}
-          <div className="card" style={{ padding: "24px" }}>
+          {/* Assigned Vendors - Hidden for vendors for privacy */}
+          {!isVendor && (
+            <div className="card" style={{ padding: "24px" }}>
             <h3 style={{ marginBottom: "16px", fontSize: "1rem" }}>
               🏢 Assigned Vendors ({rfq.vendorDetails?.length || 0})
             </h3>
@@ -308,6 +320,7 @@ export default function RFQDetail() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Right Column */}

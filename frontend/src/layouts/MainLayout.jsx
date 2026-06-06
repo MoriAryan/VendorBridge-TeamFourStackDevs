@@ -53,7 +53,7 @@ export default function MainLayout() {
     }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
-    navigate("/login", { replace: true });
+    window.location.href = "/login";
   };
 
   return (
@@ -62,7 +62,7 @@ export default function MainLayout() {
 
       <div className="main-content">
         {/* Top Bar */}
-        <header className="topbar">
+        <header className="topbar" style={{ zIndex: showUserMenu ? 250 : 50 }}>
           {/* Mobile hamburger */}
           <button
             id="hamburger-menu-btn"

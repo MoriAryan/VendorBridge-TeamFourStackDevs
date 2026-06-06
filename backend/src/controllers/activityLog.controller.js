@@ -98,7 +98,21 @@ const getGroupedActivityLogs = asyncHandler(async (req, res) => {
 // Returns 10 most recent logs (for dashboard feed).
 // ======================================================================
 const getRecentActivities = asyncHandler(async (req, res) => {
-  const activities = await ActivityLog.find()
+  const user = req.user;
+  let query = {};
+  
+  if (user.role === 'vendor') {
+    query = {
+      $or: [
+        { performedBy: user._id },
+        { action: { $regex: user.companyName || user.name || "Vendor", $options: "i" } }
+      ]
+    };
+  } else if (user.role === 'procurement_head' || user.role === 'finance_manager') {
+    query = { entityType: { $in: ["Approval", "PurchaseOrder", "RFQ"] } };
+  }
+
+  const activities = await ActivityLog.find(query)
     .populate("performedBy", "name role")
     .sort({ createdAt: -1 })
     .limit(10);

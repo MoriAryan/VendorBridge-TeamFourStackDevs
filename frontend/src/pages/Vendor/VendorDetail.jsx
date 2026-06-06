@@ -146,7 +146,7 @@ export default function VendorDetail() {
     return (
       <div style={{ padding: "60px 0" }}>
         <div className="card" style={{ padding: "48px", textAlign: "center", maxWidth: "480px", margin: "0 auto" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}>⚠</div>
+          <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}></div>
           <h2 style={{ marginBottom: "8px" }}>Vendor Not Found</h2>
           <p style={{ marginBottom: "24px" }}>{error}</p>
           <button className="btn btn-primary" onClick={() => navigate("/vendors")} id="vendor-back-btn">
@@ -233,7 +233,7 @@ export default function VendorDetail() {
       )}
       {saveError && (
         <div role="alert" style={{ marginBottom: "20px", padding: "12px 16px", borderRadius: "var(--radius-inner)", background: "rgba(229,62,62,0.08)", color: "var(--accent-danger)", fontSize: "0.875rem", fontWeight: 500 }}>
-          ⚠ {saveError}
+          {saveError}
         </div>
       )}
 
@@ -338,7 +338,7 @@ export default function VendorDetail() {
               })}
             </div>
             {statusError && (
-              <p style={{ fontSize: "0.75rem", color: "var(--accent-danger)", marginTop: "10px" }}>⚠ {statusError}</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--accent-danger)", marginTop: "10px" }}>{statusError}</p>
             )}
           </div>
 

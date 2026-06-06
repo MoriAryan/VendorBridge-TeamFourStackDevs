@@ -1,334 +1,158 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import './Activity.css';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const BASE = 'http://localhost:5000';
+const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
+
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
-function fmtAmt(n) {
-  if (!n && n !== 0) return null;
-  if (n >= 100000) return `₹${(n / 100000).toFixed(2)}L`;
-  if (n >= 1000)   return `₹${(n / 1000).toFixed(1)}K`;
-  return `₹${Number(n).toLocaleString('en-IN')}`;
+
+function getIconMeta(type, action) {
+  if (type === 'Approval') return { icon: '✅', color: '#38B2AC' };
+  if (type === 'RFQ') return { icon: '📋', color: '#6C63FF' };
+  if (type === 'Invoice') return { icon: '🧾', color: '#D69E2E' };
+  if (type === 'PurchaseOrder') return { icon: '📦', color: '#9F99FF' };
+  if (type === 'Vendor') return { icon: '🏢', color: '#E53E3E' };
+  return { icon: '🔔', color: '#718096' };
 }
 
-const ACTION_META = {
-  REQUEST_CREATED:   { icon: '⊕', label: 'Request Created',  color: '#6C63FF' },
-  APPROVAL_APPROVED: { icon: '✅', label: 'Approved',         color: '#38B2AC' },
-  APPROVAL_REJECTED: { icon: '❌', label: 'Rejected',         color: '#E53E3E' },
-  PO_GENERATED:      { icon: '📦', label: 'PO Generated',     color: '#9F99FF' },
-  INVOICE_GENERATED: { icon: '🧾', label: 'Invoice / Payment', color: '#D69E2E' },
-};
-
-function getActionMeta(type) {
-  return ACTION_META[type] || { icon: '🔔', label: type || 'Action', color: '#718096' };
-}
-
-// status derived from log array
-function deriveStatus(logs) {
-  const isPaid     = logs.some(l => l.description?.toLowerCase().includes('paid'));
-  const hasPO      = logs.some(l => l.actionType === 'PO_GENERATED');
-  const isRejected = logs.some(l => l.actionType === 'APPROVAL_REJECTED');
-  const isApproved = logs.some(l => l.actionType === 'APPROVAL_APPROVED') && !isRejected;
-  if (isPaid)     return { label: 'Paid',       color: '#38B2AC' };
-  if (hasPO)      return { label: 'PO Issued',  color: '#6C63FF' };
-  if (isRejected) return { label: 'Rejected',   color: '#E53E3E' };
-  if (isApproved) return { label: 'Approved',   color: '#38B2AC' };
-  return            { label: 'Pending',          color: '#D69E2E' };
-}
-
-// ── Single entity group card ──────────────────────────────────────────────────
-function EntityGroup({ group, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const navigate = useNavigate();
-
-  const firstLog   = group.logs[0];
-  const status     = deriveStatus(group.logs);
-  const displayAmt = group.grandTotal || group.amount;
-  const shortId    = String(group._id).slice(-8).toUpperCase();
-
-  // Extract readable title from first log description
-  const rawTitle = firstLog?.description || '';
-  const title = rawTitle
-    .replace(/^New (RFQ|procurement request) created:\s*/i, '')
-    .replace(/ from .*/i, '')
-    .replace(/"([^"]+)".*/i, '$1')
-    .replace(/^\s*"?/, '').replace(/"?\s*$/, '')
-    .trim() || `Entity #${shortId}`;
-
-  return (
-    <div className={`act-group ${open ? 'act-group--open' : ''}`}>
-
-      {/* ── Clickable header ────────────────────────────────────────────── */}
-      <div className="act-group-header" onClick={() => setOpen(v => !v)} role="button" tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && setOpen(v => !v)}>
-        <div className="act-group-icon-wrap">
-          <div className="act-group-entity-icon">
-            {firstLog ? getActionMeta(firstLog.actionType).icon : '📋'}
-          </div>
-        </div>
-
-        <div className="act-group-info">
-          <div className="act-group-title-row">
-            <span className="act-group-title">{title}</span>
-            <span className="act-group-badge" style={{ background: status.color + '22', color: status.color }}>
-              {status.label}
-            </span>
-          </div>
-          <div className="act-group-meta">
-            <code className="act-group-id">#{shortId}</code>
-            <span className="act-sep">·</span>
-            <span>{group.entityType}</span>
-            {displayAmt && (<><span className="act-sep">·</span><strong>{fmtAmt(displayAmt)}</strong></>)}
-            <span className="act-sep">·</span>
-            <span>{group.logs.length} event{group.logs.length !== 1 ? 's' : ''}</span>
-            <span className="act-sep">·</span>
-            <span className="act-group-lastdate">{fmtDate(group.latestAt)}</span>
-          </div>
-        </div>
-
-        <button
-          className={`act-toggle-btn ${open ? 'act-toggle-btn--open' : ''}`}
-          aria-label={open ? 'Collapse' : 'Expand history'}
-          tabIndex={-1}
-        >
-          <span className="act-toggle-icon">{open ? '▲' : '▼'}</span>
-          <span className="act-toggle-label">{open ? 'Collapse' : 'History'}</span>
-        </button>
-      </div>
-
-      {/* ── Expanded timeline ───────────────────────────────────────────── */}
-      {open && (
-        <div className="act-group-body">
-          {group.logs.map((log, idx) => {
-            const meta  = getActionMeta(log.actionType);
-            const isLast = idx === group.logs.length - 1;
-            return (
-              <div key={log._id || idx} className="act-log-item">
-                <div className="act-log-icon-col">
-                  <div className="act-log-dot" style={{ background: meta.color }}>
-                    <span>{meta.icon}</span>
-                  </div>
-                  {!isLast && <div className="act-log-vline" style={{ background: `${meta.color}44` }} />}
-                </div>
-                <div className="act-log-card">
-                  <div className="act-log-card-top">
-                    <span className="act-log-badge" style={{ background: meta.color + '1A', color: meta.color }}>
-                      {meta.label}
-                    </span>
-                    {log.metadata?.grandTotal && (
-                      <span className="act-log-amt">{fmtAmt(log.metadata.grandTotal)}</span>
-                    )}
-                    <button className="act-log-view-btn"
-                      onClick={() => {
-                        const routes = { Approval: `/approvals/${log.entityId}`, PurchaseOrder: '/invoices', Invoice: '/invoices' };
-                        if (routes[log.entityType]) navigate(routes[log.entityType]);
-                      }}
-                    >View →</button>
-                  </div>
-                  <p className="act-log-desc">{log.description}</p>
-                  <span className="act-log-time">{fmtDate(log.createdAt)}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
-const SORT_OPTIONS = [
-  { value: 'latest',     label: '🕒 Most Recent' },
-  { value: 'oldest',     label: '🕓 Oldest First' },
-  { value: 'amount_desc', label: '₹ Highest Value' },
-  { value: 'amount_asc',  label: '₹ Lowest Value' },
-  { value: 'events_desc', label: '📊 Most Events' },
-];
-
-const STATUS_OPTIONS = ['All', 'Pending', 'Approved', 'Rejected', 'PO Issued', 'Paid'];
+const FILTERS = ['All', 'RFQ', 'Approvals', 'Invoices', 'Vendors'];
 
 export const Activity = () => {
-  const [groups, setGroups]       = useState([]);
-  const [total, setTotal]         = useState(0);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
 
-  // Filters (server-side)
-  const [search, setSearch]       = useState('');
-  const [dateFrom, setDateFrom]   = useState('');
-  const [dateTo, setDateTo]       = useState('');
-
-  // Client-side filters/sort
-  const [statusFilter, setStatus] = useState('All');
-  const [sortBy, setSortBy]       = useState('latest');
-  const [minAmt, setMinAmt]       = useState('');
-  const [maxAmt, setMaxAmt]       = useState('');
-  const [showAdvanced, setShowAdv] = useState(false);
-
-  const fetchGroups = useCallback(async () => {
-    setLoading(true); setError('');
+  const fetchLogs = useCallback(async (filter) => {
+    setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams();
-      if (search)   params.set('search', search);
-      if (dateFrom) params.set('dateFrom', dateFrom);
-      if (dateTo)   params.set('dateTo', dateTo);
-
-      const res  = await fetch(`http://localhost:5000/api/v1/activity-logs/grouped?${params}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
-        },
-      });
-      const json = await res.json();
-      if (json.success) { setGroups(json.data.groups || []); setTotal(json.data.total || 0); }
-      else throw new Error(json.message || 'Failed to fetch');
-    } catch (e) { setError(e.message); setGroups([]); }
-    finally { setLoading(false); }
-  }, [search, dateFrom, dateTo]);
-
-  useEffect(() => { fetchGroups(); }, [fetchGroups]);
-
-  // Client-side: filter by status + amount range, then sort
-  const filtered = groups
-    .filter(g => {
-      if (statusFilter !== 'All') {
-        const s = deriveStatus(g.logs).label;
-        if (s !== statusFilter) return false;
+      if (filter !== 'All') {
+        // Map UI filter to backend entityType
+        const map = {
+          'RFQ': 'RFQ',
+          'Approvals': 'Approval',
+          'Invoices': 'Invoice',
+          'Vendors': 'Vendor'
+        };
+        params.set('entityType', map[filter] || filter);
       }
-      const amt = g.grandTotal || g.amount || 0;
-      if (minAmt && amt < Number(minAmt)) return false;
-      if (maxAmt && amt > Number(maxAmt)) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const aAmt = a.grandTotal || a.amount || 0;
-      const bAmt = b.grandTotal || b.amount || 0;
-      if (sortBy === 'oldest')     return new Date(a.latestAt) - new Date(b.latestAt);
-      if (sortBy === 'amount_desc') return bAmt - aAmt;
-      if (sortBy === 'amount_asc')  return aAmt - bAmt;
-      if (sortBy === 'events_desc') return b.logs.length - a.logs.length;
-      return new Date(b.latestAt) - new Date(a.latestAt); // latest (default)
-    });
+      
+      const res = await fetch(`${BASE}/api/v1/activity-logs?${params.toString()}`, { headers: authH() });
+      const json = await res.json();
+      if (json.success) {
+        setLogs(json.data.activities || []);
+      } else {
+        throw new Error(json.message || 'Failed to fetch');
+      }
+    } catch (e) {
+      setError(e.message);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const hasFilters = statusFilter !== 'All' || minAmt || maxAmt || dateFrom || dateTo || search;
-  const clearAll = () => { setStatus('All'); setMinAmt(''); setMaxAmt(''); setDateFrom(''); setDateTo(''); setSearch(''); };
+  useEffect(() => {
+    fetchLogs(activeFilter);
+  }, [fetchLogs, activeFilter]);
 
   return (
-    <div>
-      <main className="act-main">
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+      <header style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '8px', color: 'var(--fg)' }}>
+          Activity &amp; Logs
+        </h1>
+        <p style={{ color: 'var(--muted)', fontSize: '0.9375rem' }}>
+          Procurement audit trail
+        </p>
+      </header>
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <header className="act-header">
-          <div>
-            <p className="act-greeting">Audit Trail</p>
-            <h1 className="act-title">Activity Logs</h1>
-            <p className="act-subtitle">Click any entity card to expand its full procurement history</p>
-          </div>
-          <div className="act-header-right">
-            <div className="act-stat-pill">
-              <span className="act-stat-val">{filtered.length}</span>
-              <span className="act-stat-lbl">Entities</span>
-            </div>
-          </div>
-        </header>
-
-        {/* ── Search + Sort bar ───────────────────────────────────────── */}
-        <div className="act-top-bar">
-          <div className="act-search-wrap">
-            <span className="act-search-icon">🔍</span>
-            <input className="act-search" type="text"
-              placeholder="Search by description, vendor, RFQ title…"
-              value={search} onChange={e => setSearch(e.target.value)} />
-            {search && <button className="act-search-clear" onClick={() => setSearch('')}>×</button>}
-          </div>
-          <div className="act-sort-wrap">
-            <label className="act-sort-label">Sort</label>
-            <select className="act-sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <button className={`act-adv-btn ${showAdvanced ? 'act-adv-btn--active' : ''}`} onClick={() => setShowAdv(v => !v)}>
-            ⚙ Filters {hasFilters && <span className="act-adv-dot" />}
+      {/* Contextual Filters */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', flexWrap: 'wrap' }}>
+        {FILTERS.map(f => (
+          <button
+            key={f}
+            onClick={() => setActiveFilter(f)}
+            style={{
+              padding: '8px 16px', borderRadius: '999px', border: 'none', cursor: 'pointer',
+              fontSize: '0.875rem', fontWeight: activeFilter === f ? 700 : 500,
+              background: activeFilter === f ? 'var(--bg)' : 'transparent',
+              boxShadow: activeFilter === f ? 'var(--shadow-inset-sm)' : 'none',
+              color: activeFilter === f ? 'var(--accent)' : 'var(--muted)',
+              transition: 'all 0.2s',
+            }}
+          >
+            {f}
           </button>
+        ))}
+      </div>
+
+      <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-extruded)' }}>
+        <div style={{ paddingBottom: '16px', borderBottom: '1px solid rgba(163,177,198,0.2)', marginBottom: '24px' }}>
+          <p style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--fg)' }}>
+            Chronological Feed <span style={{ float: 'right', fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>Immutable records</span>
+          </p>
         </div>
 
-        {/* ── Advanced Filters ────────────────────────────────────────── */}
-        {showAdvanced && (
-          <div className="act-adv-panel">
-            <div className="act-adv-grid">
-              {/* Status filter */}
-              <div className="act-adv-group">
-                <label className="act-adv-label">Status</label>
-                <div className="act-status-chips">
-                  {STATUS_OPTIONS.map(s => (
-                    <button key={s}
-                      className={`act-status-chip ${statusFilter === s ? 'act-status-chip--active' : ''}`}
-                      onClick={() => setStatus(s)}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Loading activity feed…</div>
+        ) : error ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--danger)' }}>{error}</div>
+        ) : logs.length === 0 ? (
+          <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted)' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '16px' }}>📭</div>
+            <p>No activities found for this filter.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {logs.map((log, index) => {
+              const meta = getIconMeta(log.entityType, log.action);
+              const isLast = index === logs.length - 1;
 
-              {/* Price range */}
-              <div className="act-adv-group">
-                <label className="act-adv-label">Value Range (₹)</label>
-                <div className="act-range-row">
-                  <input className="act-range-input" type="number" placeholder="Min (e.g. 50000)" value={minAmt} onChange={e => setMinAmt(e.target.value)} min="0" />
-                  <span className="act-range-sep">to</span>
-                  <input className="act-range-input" type="number" placeholder="Max (e.g. 500000)" value={maxAmt} onChange={e => setMaxAmt(e.target.value)} min="0" />
-                </div>
-              </div>
+              return (
+                <div key={log._id} style={{ display: 'flex', gap: '16px', position: 'relative' }}>
+                  {/* Icon Column */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '14px', zIndex: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}>
+                      {meta.icon}
+                    </div>
+                    {!isLast && (
+                      <div style={{ width: '2px', background: 'rgba(163,177,198,0.3)', flex: 1, margin: '4px 0' }} />
+                    )}
+                  </div>
 
-              {/* Date range */}
-              <div className="act-adv-group">
-                <label className="act-adv-label">Date Range</label>
-                <div className="act-range-row">
-                  <input className="act-range-input act-date-input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-                  <span className="act-range-sep">to</span>
-                  <input className="act-range-input act-date-input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                  {/* Content Column */}
+                  <div style={{ flex: 1, paddingBottom: isLast ? '0' : '20px' }}>
+                    <div style={{ fontSize: '0.9375rem', color: 'var(--fg)', lineHeight: '1.5' }}>
+                      {log.action}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '4px', display: 'flex', gap: '8px' }}>
+                      <span>{fmtDate(log.createdAt)}</span>
+                      {log.performedBy && (
+                        <>
+                          <span>·</span>
+                          <span>{log.performedBy.name}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {hasFilters && (
-              <button className="act-clear-btn" onClick={clearAll}>✕ Clear All Filters</button>
-            )}
+              );
+            })}
           </div>
         )}
-
-        {/* ── Groups ──────────────────────────────────────────────────── */}
-        <div className="act-card">
-          <div className="act-card-head">
-            <p className="act-card-title"><span className="act-card-bar" />Procurement Audit Timeline</p>
-            {!loading && <span className="act-card-count">{filtered.length} of {total}</span>}
-          </div>
-
-          {loading && <div className="act-loader"><div className="act-spinner" /><p>Loading…</p></div>}
-          {!loading && error && (
-            <div className="act-error">⚠ {error}
-              <button className="act-retry" onClick={fetchGroups}>Retry</button>
-            </div>
-          )}
-          {!loading && !error && filtered.length === 0 && (
-            <div className="act-empty">
-              <span className="act-empty-icon">🗂</span>
-              <p>No records match your filters.</p>
-              {hasFilters && <button className="act-clear-btn" onClick={clearAll}>Clear Filters</button>}
-            </div>
-          )}
-          {!loading && !error && filtered.length > 0 && (
-            <div className="act-groups">
-              {filtered.map((g, i) => <EntityGroup key={g._id || i} group={g} defaultOpen={false} />)}
-            </div>
-          )}
-        </div>
-      </main>
+      </div>
     </div>
   );
 };

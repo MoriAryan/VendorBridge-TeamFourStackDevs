@@ -29,6 +29,6 @@ router.route("/:id").get(getApprovalById);
 
 router
   .route("/:id/decide")
-  .patch(requireRole("admin", "approver", "procurement_officer"), decideApproval);
+  .patch(requireRole("admin", "procurement_head", "finance_manager"), decideApproval);
 
 export default router;

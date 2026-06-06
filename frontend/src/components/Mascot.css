@@ -1,0 +1,59 @@
+/* Constant float animation */
+.mascot-container {
+  position: relative;
+  z-index: 100;
+  display: inline-block;
+  animation: mascot-float 3s ease-in-out infinite;
+}
+
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.mascot-shadow {
+  animation: mascot-shadow-pulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes mascot-shadow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.1; }
+  50% { transform: scale(0.8); opacity: 0.05; }
+}
+
+.mascot-bulb {
+  animation: mascot-blink 2s infinite;
+}
+@keyframes mascot-blink {
+  0%, 90%, 100% { fill: #6C63FF; }
+  95% { fill: #E0E5EC; }
+}
+
+/* Expressions */
+.mascot-confused .eye-left { d: path("M 45 65 Q 50 60 55 65"); }
+.mascot-confused .eye-right { d: path("M 65 75 Q 70 70 75 75"); }
+.mascot-confused .arm-left { transform: rotate(-20deg); transform-origin: 25px 80px; }
+.mascot-confused .arm-right { transform: rotate(20deg); transform-origin: 95px 80px; }
+
+.mascot-curious .eye-left { d: path("M 45 65 Q 50 60 55 65"); }
+.mascot-curious .eye-right { d: path("M 65 65 Q 70 60 75 65"); }
+
+.mascot-nervous .mascot-container { animation: mascot-shake 0.5s infinite; }
+@keyframes mascot-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.mascot-nervous .eye-left { d: path("M 45 75 Q 50 70 55 75"); }
+.mascot-nervous .eye-right { d: path("M 65 75 Q 70 70 75 75"); }
+
+.mascot-celebrate .arm-left { transform: rotate(-120deg); transform-origin: 25px 80px; }
+.mascot-celebrate .arm-right { transform: rotate(120deg); transform-origin: 95px 80px; }
+.mascot-celebrate .mascot-container { animation: mascot-jump 0.5s infinite; }
+@keyframes mascot-jump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.mascot-proud .eye-left { d: path("M 45 68 Q 50 62 55 68"); }
+.mascot-proud .eye-right { d: path("M 65 68 Q 70 62 75 68"); }

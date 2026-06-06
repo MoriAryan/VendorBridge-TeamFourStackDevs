@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import EmailModal from '../components/EmailModal';
+import { getCurrentUser } from '../utils/auth.js';
+import EmailModal from '../components/EmailModal.jsx';
 import { generateInvoicePDF } from '../utils/generateInvoicePDF';
 import './POInvoice.css';
 
@@ -13,80 +14,123 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ── Invoice List Panel ────────────────────────────────────────────────────
-function InvoiceList({ list, activeId, onSelect, loading, panelOpen, onTogglePanel }) {
-  const [collapsed, setCollapsed] = useState({ Sent: false, Paid: true, Overdue: false, Generated: true });
-  const toggle = (g) => setCollapsed(prev => ({ ...prev, [g]: !prev[g] }));
-
-  if (loading) return <div className="pi-list-loading">Loading…</div>;
-
-  const groups = {
-    Sent:      list.filter(i => i.status === 'Sent'),
-    Overdue:   list.filter(i => i.status === 'Overdue'),
-    Paid:      list.filter(i => i.status === 'Paid'),
-    Generated: list.filter(i => i.status === 'Generated'),
-  };
-
-  const statusColor = { Sent: '#F59E0B', Overdue: '#EF4444', Paid: '#38B2AC', Generated: '#6C63FF' };
+// ── Status Badge ──────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  const s = status || 'Sent';
+  const label = { Sent: 'Pending Payment', Paid: 'Paid', Overdue: 'Overdue', Generated: 'Generated' }[s] || s;
+  
+  const colors = {
+    Sent:      { color: '#D69E2E', bg: 'rgba(214,158,46,0.1)' },
+    Overdue:   { color: '#E53E3E', bg: 'rgba(229,62,62,0.1)' },
+    Paid:      { color: '#38B2AC', bg: 'rgba(56,178,172,0.1)' },
+    Generated: { color: '#6C63FF', bg: 'rgba(108,99,255,0.1)' },
+  }[s] || { color: '#718096', bg: 'rgba(113,128,150,0.1)' };
 
   return (
-    <aside className={`pi-list-panel${panelOpen ? '' : ' pi-list-panel--hidden'}`}>
-      <div className="pi-list-header">
-        <h2 className="pi-list-title">Invoices</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="pi-list-count">{list.length}</span>
-          <button className="pi-panel-toggle" onClick={onTogglePanel} title="Collapse panel" aria-label="Collapse panel">
-            ‹
-          </button>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '6px',
+      padding: '4px 12px', borderRadius: '999px',
+      fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
+      color: colors.color, background: colors.bg
+    }}>
+      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: colors.color }}></span>
+      {label}
+    </span>
+  );
+}
+
+// ── Invoice List View ─────────────────────────────────────────────────────
+function InvoiceListView({ list, loading, error, onSelect }) {
+  const [filter, setFilter] = useState('All');
+  
+  if (loading) return <div className="pi-loader">Loading invoices…</div>;
+  if (error) return <div className="pi-error">{error}</div>;
+
+  const filtered = filter === 'All' 
+    ? list 
+    : list.filter(i => (filter === 'Pending Payment' ? i.status === 'Sent' : i.status === filter));
+
+  const stats = {
+    All: list.length,
+    'Pending Payment': list.filter(i => i.status === 'Sent').length,
+    Paid: list.filter(i => i.status === 'Paid').length,
+    Overdue: list.filter(i => i.status === 'Overdue').length,
+    Generated: list.filter(i => i.status === 'Generated').length,
+  };
+
+  return (
+    <div className="pi-dashboard">
+      <header className="pi-header" style={{ marginBottom: '24px' }}>
+        <div>
+          <h1 className="pi-page-title">Invoices</h1>
+          <p className="pi-page-subtitle">Manage purchase orders, invoices, and payments</p>
         </div>
+      </header>
+
+      {/* Filter Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {['All', 'Pending Payment', 'Overdue', 'Paid', 'Generated'].map(f => {
+          if (f !== 'All' && stats[f] === 0) return null;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: '8px 16px', borderRadius: '999px', border: 'none', cursor: 'pointer',
+                fontSize: '0.875rem', fontWeight: filter === f ? 700 : 500,
+                background: filter === f ? 'var(--bg)' : 'transparent',
+                boxShadow: filter === f ? 'var(--sh-in-sm)' : 'none',
+                color: filter === f ? 'var(--accent)' : 'var(--muted)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {f} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({stats[f]})</span>
+            </button>
+          )
+        })}
       </div>
 
-      {Object.entries(groups).map(([groupName, items]) =>
-        items.length === 0 ? null : (
-          <div key={groupName} className="pi-list-group">
-            <button
-              className="pi-list-group-btn"
-              onClick={() => toggle(groupName)}
-              aria-expanded={!collapsed[groupName]}
-            >
-              <span className="pi-list-group-label" style={{ color: statusColor[groupName] }}>
-                {groupName} ({items.length})
-              </span>
-              <span className={`pi-list-chevron${collapsed[groupName] ? '' : ' pi-list-chevron--open'}`}>›</span>
-            </button>
-
-            {!collapsed[groupName] && items.map(inv => {
-              const po = inv.purchaseOrderId;
-              return (
-                <button
-                  key={inv._id}
-                  className={`pi-list-item${inv._id === activeId ? ' pi-list-item--active' : ''}`}
-                  onClick={() => onSelect(inv._id)}
-                >
-                  <div className="pi-list-item-top">
-                    <span className="pi-list-item-po">{po?.poNumber || 'PO—'}</span>
-                    <span className="pi-list-item-badge" style={{ background: statusColor[inv.status] + '22', color: statusColor[inv.status] }}>
-                      {inv.status}
-                    </span>
-                  </div>
-                  <p className="pi-list-item-vendor">{po?.vendor?.name || '—'}</p>
-                  <p className="pi-list-item-amount">Rs. {fmt(po?.grandTotal)}</p>
-                </button>
-              );
-            })}
-          </div>
-        )
+      {filtered.length === 0 ? (
+        <div className="pi-empty card">No invoices found for this filter.</div>
+      ) : (
+        <div className="pi-list-grid">
+          {filtered.map(inv => {
+            const po = inv.purchaseOrderId;
+            return (
+              <div 
+                key={inv._id} 
+                className="card pi-list-card" 
+                onClick={() => onSelect(inv._id)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{po?.poNumber || 'PO—'}</div>
+                  <StatusBadge status={inv.status} />
+                </div>
+                
+                <div style={{ fontSize: '0.875rem', color: 'var(--fg)', marginBottom: '4px' }}>
+                  <strong>Vendor:</strong> {po?.vendor?.name || '—'}
+                </div>
+                
+                <div style={{ fontSize: '0.8125rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                  <span>{fmtDate(inv.createdAt)}</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                    Rs. {fmt(po?.grandTotal)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
-    </aside>
+    </div>
   );
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────
-export default function POInvoice() {
+export default function Invoice() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [panelOpen, setPanelOpen] = useState(true);
   const [list, setList]             = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [data, setData]             = useState(null);
@@ -97,7 +141,7 @@ export default function POInvoice() {
   const [showEmail, setShowEmail]   = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // Fetch all invoices for list panel
+  // Fetch all invoices
   const fetchList = async () => {
     try {
       setListLoading(true);
@@ -105,13 +149,6 @@ export default function POInvoice() {
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
       setList(json.data);
-      // Auto-select: use URL param, else first overdue, else first
-      if (!id && json.data.length) {
-        const first = json.data.find(i => i.status === 'Overdue') ||
-                      json.data.find(i => i.status === 'Sent')    ||
-                      json.data[0];
-        navigate(`/invoices/${first._id}`, { replace: true });
-      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -119,7 +156,7 @@ export default function POInvoice() {
     }
   };
 
-  // Fetch one invoice + its PO in ONE call (controller now returns {invoice, po})
+  // Fetch detail
   const fetchDetail = async (invoiceId) => {
     if (!invoiceId) return;
     try {
@@ -131,7 +168,6 @@ export default function POInvoice() {
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
 
-      // Updated controller returns: { success, data: { invoice, po } }
       const { invoice, po } = json.data;
       setData({ invoice, po });
       setActionMsg('');
@@ -142,22 +178,15 @@ export default function POInvoice() {
     }
   };
 
-  useEffect(() => { fetchList(); }, []);
+  useEffect(() => { 
+    if (!id) fetchList(); 
+  }, [id]);
 
-  // Refresh list when navigated to an invoice ID that isn't in the list yet
-  // (this happens when user clicks "View Generated Invoice" after an approval)
   useEffect(() => {
     if (id) {
-      const inList = list.find(i => i._id === id);
-      if (!inList && !listLoading) {
-        // Newly generated invoice — refresh list to include it
-        fetchList();
-      }
       fetchDetail(id);
     }
   }, [id]);
-
-  const handleSelect = (invoiceId) => navigate(`/invoices/${invoiceId}`);
 
   const handleMarkPaid = async () => {
     setSubmitting(true);
@@ -165,12 +194,12 @@ export default function POInvoice() {
       const res  = await fetch(`${BASE}/api/v1/invoices/${data.invoice._id}/mark-paid`, { method: 'PATCH', headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
+      
       const updated = { ...data.invoice, status: 'Paid', paidAt: json.data.paidAt };
       setData(prev => ({ ...prev, invoice: updated }));
-      setList(prev => prev.map(i => i._id === updated._id ? { ...i, status: 'Paid' } : i));
       setActionMsg('✓ Invoice marked as Paid. Purchase Order updated to Completed.');
     } catch (e) {
-      setActionMsg(`⚠ ${e.message}`);
+      setActionMsg(`${e.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -183,37 +212,34 @@ export default function POInvoice() {
     finally { setPdfLoading(false); }
   };
 
+  // If no ID is provided, show the dashboard list
+  if (!id) {
+    return (
+      <div className="pi-layout">
+        <main className="pi-main">
+          <InvoiceListView 
+            list={list} 
+            loading={listLoading} 
+            error={error} 
+            onSelect={(invoiceId) => navigate(`/invoices/${invoiceId}`)} 
+          />
+        </main>
+      </div>
+    );
+  }
+
+  // Detail View
   const status      = data?.invoice?.status || 'Sent';
   const statusLabel = { Sent: 'Pending Payment', Paid: 'Paid', Overdue: 'Overdue', Generated: 'Generated' }[status] || status;
 
   return (
-    <div>
-
-      {/* Invoice list panel */}
-      <InvoiceList
-        list={list}
-        activeId={id}
-        onSelect={handleSelect}
-        loading={listLoading}
-        panelOpen={panelOpen}
-        onTogglePanel={() => setPanelOpen(p => !p)}
-      />
-
+    <div className="pi-layout">
       <main className="pi-main">
-        {!panelOpen && (
-          <button
-            className="pi-panel-expand"
-            onClick={() => setPanelOpen(true)}
-            title="Show invoice list"
-            aria-label="Show invoice list"
-          >
-            ›
-          </button>
-        )}
-        {detailLoading && <div className="pi-loader">Loading invoice…</div>}
+        {detailLoading && <div className="pi-loader">Loading invoice details…</div>}
         {error && !detailLoading && (
-          <div className="pi-error">⚠ {error}
-            <p className="pi-error-hint">Try <code>/api/v1/seed?force=1</code></p>
+          <div className="card pi-error">
+            <p>{error}</p>
+            <button className="pi-action-btn" onClick={() => navigate('/invoices')} style={{ marginTop: '16px' }}>← Back to Invoices</button>
           </div>
         )}
 
@@ -221,9 +247,20 @@ export default function POInvoice() {
           <>
             {/* Header */}
             <header className="pi-header">
-              <div>
-                <h1 className="pi-page-title">Purchase Order &amp; Invoice</h1>
-                <p className="pi-page-subtitle">{data.po?.poNumber} · Auto-generated after approval</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <button 
+                  onClick={() => navigate('/invoices')}
+                  style={{
+                    padding: '8px', border: 'none', background: 'var(--bg)', borderRadius: '50%',
+                    boxShadow: 'var(--sh-out-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                >
+                  ←
+                </button>
+                <div>
+                  <h1 className="pi-page-title">Purchase Order &amp; Invoice</h1>
+                  <p className="pi-page-subtitle">{data.po?.poNumber} · Auto-generated</p>
+                </div>
               </div>
               <div className="pi-actions">
                 <button className="pi-action-btn" onClick={handleDownload} disabled={pdfLoading}>
@@ -237,10 +274,8 @@ export default function POInvoice() {
             </header>
 
             <div id="po-invoice-content">
-             
-
-              {/* Billing */}
-              <div className="pi-card">
+              {/* Billing Info */}
+              <div className="pi-card" style={{ marginBottom: '24px' }}>
                 <p className="pi-card-title">Billing Information</p>
                 <div className="pi-billing">
                   <div className="pi-billing-section">
@@ -259,7 +294,7 @@ export default function POInvoice() {
               </div>
 
               {/* Metadata */}
-              <div className="pi-meta">
+              <div className="pi-meta" style={{ marginBottom: '24px' }}>
                 {[
                   { label: 'PO Number',     value: data.po?.poNumber },
                   { label: 'Invoice Date',  value: fmtDate(data.invoice?.invoiceDate) },
@@ -269,14 +304,14 @@ export default function POInvoice() {
                   <div key={m.label} className="pi-meta-item">
                     <p className="pi-meta-label">{m.label}</p>
                     <p className="pi-meta-value" style={m.warn ? { color: 'var(--danger)' } : {}}>
-                      {m.value} {m.warn && '⚠'}
+                      {m.value} {m.warn && ''}
                     </p>
                   </div>
                 ))}
               </div>
 
               {/* Line Items */}
-              <div className="pi-card">
+              <div className="pi-card" style={{ marginBottom: '24px' }}>
                 <p className="pi-card-title">Line Items</p>
                 <div className="pi-table-wrap">
                   <table className="pi-table">
@@ -298,6 +333,7 @@ export default function POInvoice() {
                     </tbody>
                   </table>
                 </div>
+                
                 <div className="pi-totals">
                   <div className="pi-totals-box">
                     {[
@@ -318,16 +354,17 @@ export default function POInvoice() {
                 </div>
               </div>
 
-              {/* Footer */}
+              {/* Footer / Status */}
               <footer className="pi-card pi-footer">
-                <div className={`pi-status-pill pi-status-pill--${status.toLowerCase()}`}>
-                  <span className={`pi-status-dot pi-status-dot--${status.toLowerCase()}`} />
-                  Status: {statusLabel}
-                  {data.invoice?.paidAt && (
-                    <span style={{ fontWeight: 400, marginLeft: 8 }}>({fmtDate(data.invoice.paidAt)})</span>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <StatusBadge status={status} />
+                  <span style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
+                    Current Status: {statusLabel}
+                    {data.invoice?.paidAt && ` (Paid on ${fmtDate(data.invoice.paidAt)})`}
+                  </span>
                 </div>
-                {status !== 'Paid' && (
+                
+                {status !== 'Paid' && getCurrentUser()?.role !== 'vendor' && (
                   <button id="btn-mark-paid" className="pi-mark-paid-btn" onClick={handleMarkPaid} disabled={submitting}>
                     {submitting ? 'Processing…' : '✓ Mark as Paid'}
                   </button>
@@ -335,12 +372,8 @@ export default function POInvoice() {
               </footer>
             </div>
 
-            {actionMsg && <div className="pi-action-msg">{actionMsg}</div>}
+            {actionMsg && <div className="pi-action-msg" style={{ marginTop: '24px' }}>{actionMsg}</div>}
           </>
-        )}
-
-        {!detailLoading && !data && !error && (
-          <div className="pi-empty">Select an invoice from the list to view details.</div>
         )}
       </main>
 

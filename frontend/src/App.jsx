@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout.jsx";
+import LandingPage from "./pages/LandingPage.jsx";
 import AuthPage from "./pages/Auth/AuthPage.jsx";
 import RFQList from "./pages/RFQ/RFQList.jsx";
 import CreateRFQ from "./pages/RFQ/CreateRFQ.jsx";
@@ -11,7 +12,8 @@ import QuotationComparison from "./pages/Quotation/QuotationComparison.jsx";
 import ApprovalList from "./pages/Approval/ApprovalList.jsx";
 import ApprovalDetail from "./pages/Approval/ApprovalDetail.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import POInvoice from "./pages/POInvoice.jsx";
+import PurchaseOrder from "./pages/PurchaseOrder.jsx";
+import Invoice from "./pages/Invoice.jsx";
 import Reports from "./pages/Reports.jsx";
 import { Activity } from "./pages/Activity.jsx";
 
@@ -76,17 +78,8 @@ export default function App() {
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
 
-        {/* Default redirect */}
-        <Route
-          path="/"
-          element={
-            isLoggedIn() ? (
-              <Navigate to="/rfqs" replace />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
 
         {/* Main app shell — all protected */}
         <Route
@@ -109,11 +102,8 @@ export default function App() {
           <Route path="/rfqs/:id" element={<RFQDetail />} />
 
           {/* Quotations — /compare must come before /:id */}
-          {/* /quotations (no rfqId) redirects to /rfqs — users reach quotations via RFQ detail */}
-          <Route path="/quotations" element={<Navigate to="/rfqs" replace />} />
+          <Route path="/quotations" element={<QuotationList />} />
           <Route path="/quotations/compare" element={<QuotationComparison />} />
-          {/* /quotations/:id — single quotation view not needed separately,
-              redirect back to the list for that RFQ */}
           <Route path="/quotations/:id" element={<QuotationList />} />
 
           {/* Approvals */}
@@ -121,12 +111,12 @@ export default function App() {
           <Route path="/approvals/:id" element={<ApprovalDetail />} />
 
           {/* Purchase Orders */}
-          <Route path="/purchase-orders" element={<POInvoice />} />
-          <Route path="/purchase-orders/:id" element={<POInvoice />} />
+          <Route path="/purchase-orders" element={<PurchaseOrder />} />
+          <Route path="/purchase-orders/:id" element={<PurchaseOrder />} />
 
           {/* Invoices */}
-          <Route path="/invoices" element={<POInvoice />} />
-          <Route path="/invoices/:id" element={<POInvoice />} />
+          <Route path="/invoices" element={<Invoice />} />
+          <Route path="/invoices/:id" element={<Invoice />} />
 
           {/* Reports */}
           <Route path="/reports" element={<Reports />} />

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllRFQs, getRFQStats } from "../../api/rfq.api.js";
+import { getCurrentUser } from "../../utils/auth.js";
 
 // ── Demo data for when backend isn't running ──────────────────────
 const DEMO_RFQS = [
@@ -134,7 +135,7 @@ function RFQRow({ rfq, onView }) {
             fontWeight: isOverdue ? "600" : "400",
           }}
         >
-          {isOverdue && "⚠ "}
+          {isOverdue && ""}
           {deadline.toLocaleDateString("en-IN", {
             day: "numeric",
             month: "short",
@@ -228,6 +229,9 @@ export default function RFQList() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
 
+  const currentUser = getCurrentUser();
+  const canCreate = currentUser && ["admin", "procurement_officer"].includes(currentUser.role);
+
   // ── Fetch RFQs ────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
@@ -289,13 +293,15 @@ export default function RFQList() {
           <h1>RFQ's</h1>
           <p>Manage requests for quotation across your procurement lifecycle</p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate("/rfqs/create")}
-          id="new-rfq-btn"
-        >
-          + New RFQ
-        </button>
+        {canCreate && (
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate("/rfqs/create")}
+            id="new-rfq-btn"
+          >
+            + New RFQ
+          </button>
+        )}
       </div>
 
       {/* KPI Stats */}
@@ -315,7 +321,7 @@ export default function RFQList() {
             fontWeight: "500",
           }}
         >
-          ⚠ {fetchError}
+          {fetchError}
         </div>
       )}
 
@@ -385,14 +391,16 @@ export default function RFQList() {
                 ? `No results for "${search}"`
                 : `No ${activeFilter !== "All" ? activeFilter : ""} RFQs yet.`}
             </p>
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate("/rfqs/create")}
-              style={{ marginTop: "16px" }}
-              id="create-first-rfq-btn"
-            >
-              + Create your first RFQ
-            </button>
+            {canCreate && (
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate("/rfqs/create")}
+                style={{ marginTop: "16px" }}
+                id="create-first-rfq-btn"
+              >
+                + Create your first RFQ
+              </button>
+            )}
           </div>
         ) : (
           <div className="table-wrapper" style={{ borderRadius: "var(--radius-card)" }}>

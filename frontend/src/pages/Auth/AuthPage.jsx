@@ -9,6 +9,19 @@ const ROLES = [
   { value: "approver", label: "Approver / Manager" },
 ];
 
+const VENDOR_CATEGORIES = [
+  "Furniture",
+  "IT Hardware",
+  "Software",
+  "Logistics",
+  "Construction",
+  "Stationery",
+  "Catering",
+  "Maintenance",
+  "Electronics",
+  "Other",
+];
+
 // ── Reusable field component ────────────────────────────────────────
 function Field({ id, label, type = "text", placeholder, value, onChange, error, required }) {
   return (
@@ -109,7 +122,7 @@ function LoginForm({ onSuccess }) {
             boxShadow: "var(--shadow-inset-sm)",
           }}
         >
-          ⚠ {apiError}
+          {apiError}
         </div>
       )}
 
@@ -136,6 +149,7 @@ function RegisterForm({ onSuccess }) {
     companyName: "",
     phone: "",
     country: "India",
+    vendorCategory: "",
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -151,6 +165,7 @@ function RegisterForm({ onSuccess }) {
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email";
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 6) e.password = "Minimum 6 characters";
+    if (form.role === "vendor" && !form.vendorCategory) e.vendorCategory = "Category is required for vendors";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -223,6 +238,34 @@ function RegisterForm({ onSuccess }) {
             ))}
           </select>
         </div>
+
+        {form.role === "vendor" && (
+          <div className="form-group">
+            <label className="form-label" htmlFor="reg-category">
+              Vendor Category <span className="required">*</span>
+            </label>
+            <select
+              id="reg-category"
+              className="form-select"
+              value={form.vendorCategory}
+              onChange={(e) => set("vendorCategory")(e.target.value)}
+              aria-invalid={!!errors.vendorCategory}
+            >
+              <option value="">Select category...</option>
+              {VENDOR_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            {errors.vendorCategory && (
+              <span role="alert" style={{ color: "var(--accent-danger)", fontSize: "0.75rem" }}>
+                {errors.vendorCategory}
+              </span>
+            )}
+          </div>
+        )}
+
         <Field
           id="reg-company"
           label="Company Name"
@@ -252,7 +295,7 @@ function RegisterForm({ onSuccess }) {
             boxShadow: "var(--shadow-inset-sm)",
           }}
         >
-          ⚠ {apiError}
+          {apiError}
         </div>
       )}
 
@@ -276,7 +319,7 @@ export default function AuthPage() {
 
   const handleSuccess = (user) => {
     // Route based on role
-    navigate("/rfqs", { replace: true });
+    navigate("/dashboard", { replace: true });
   };
 
   return (
@@ -336,22 +379,7 @@ export default function AuthPage() {
       >
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "var(--radius-inner)",
-              background: "var(--bg)",
-              boxShadow: "var(--shadow-extruded)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-              fontSize: "1.75rem",
-            }}
-          >
-            🔗
-          </div>
+
           <h1
             style={{
               fontFamily: "var(--font-display)",

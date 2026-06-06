@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import { getCurrentUser } from '../utils/auth.js';
 import './ApprovalWorkflow.css';
+
+const BASE = 'http://localhost:5000';
+const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` });
 
 const STEPS = ['Submitted', 'L1 Review', 'L2 Approval', 'Generate PO'];
 
@@ -62,13 +65,13 @@ function RequestList({ list, activeId, onSelect, loading, panelOpen, onTogglePan
                 onClick={() => onSelect(a._id)}
               >
                 <div className="aw-list-item-top">
-                  <span className="aw-list-item-rfq">{a.rfqTitle}</span>
+                  <span className="aw-list-item-rfq">{a.snapshot?.rfqTitle || a.rfqTitle}</span>
                   <span className={`aw-list-item-badge aw-list-item-badge--${a.status.toLowerCase()}`}>
                     {a.status}
                   </span>
                 </div>
-                <p className="aw-list-item-vendor">{a.vendor?.name}</p>
-                <p className="aw-list-item-amount">Rs. {Number(a.quotationAmount).toLocaleString('en-IN')}</p>
+                <p className="aw-list-item-vendor">{a.snapshot?.vendorName || a.vendor?.name}</p>
+                <p className="aw-list-item-amount">Rs. {Number(a.snapshot?.totalAmount || a.quotationAmount).toLocaleString('en-IN')}</p>
               </button>
             ))}
           </div>
@@ -94,17 +97,27 @@ export default function ApprovalWorkflow() {
   const [submitting, setSubmitting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
 
+  const currentUser = getCurrentUser();
+
+  // Redirect vendors away from approvals
+  useEffect(() => {
+    if (currentUser?.role === 'vendor') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   // Fetch all approvals for the list panel
   const fetchList = async () => {
     try {
       setListLoading(true);
-      const res  = await fetch('/api/v1/approvals');
+      const res  = await fetch(`${BASE}/api/v1/approvals`, { headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
-      setList(json.data);
+      setList(json.data.approvals || json.data);
       // Auto-select: use URL param, else first pending, else first item
-      if (!id && json.data.length) {
-        const firstPending = json.data.find(a => a.status === 'Pending') || json.data[0];
+      const approvalsList = json.data.approvals || json.data;
+      if (!id && approvalsList.length) {
+        const firstPending = approvalsList.find(a => a.status === 'Pending') || approvalsList[0];
         navigate(`/approvals/${firstPending._id}`, { replace: true });
       }
     } catch (e) {
@@ -120,7 +133,7 @@ export default function ApprovalWorkflow() {
     try {
       setDetailLoading(true);
       setError('');
-      const res  = await fetch(`/api/v1/approvals/${approvalId}`);
+      const res  = await fetch(`${BASE}/api/v1/approvals/${approvalId}`, { headers: authH() });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
       setApproval(json.data);
@@ -144,10 +157,14 @@ export default function ApprovalWorkflow() {
     setFormError('');
     setSubmitting(true);
     try {
-      const res  = await fetch(`/api/v1/approvals/${approval._id}/${action}`, {
+      const pendingLevel = approval.approvalChain.find(l => l.status === 'Pending');
+      if (!pendingLevel) throw new Error("No pending approval level found.");
+
+      const newDecision = action === 'approve' ? 'Approved' : 'Rejected';
+      const res  = await fetch(`${BASE}/api/v1/approvals/${approval._id}/decide`, {
         method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ remarks }),
+        headers: { 'Content-Type': 'application/json', ...authH() },
+        body:    JSON.stringify({ level: pendingLevel.level, decision: newDecision, remarks }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
@@ -165,17 +182,17 @@ export default function ApprovalWorkflow() {
   const getStepStatus = (idx) => {
     if (!approval) return 'pending';
     if (approval.status === 'Approved') return 'done';
-    if (idx < approval.currentStep) return 'done';
-    if (idx === approval.currentStep) return 'active';
+    const activeLevel = approval.approvalChain?.find(s => s.status === 'Pending')?.level || 1;
+    if (idx < activeLevel) return 'done';
+    if (idx === activeLevel) return 'active';
     return 'pending';
   };
 
   const isActionable    = approval?.status === 'Pending';
-  const activeChainStep = approval?.chain?.[approval.currentStep];
+  const activeChainStep = approval?.approvalChain?.find(s => s.status === 'Pending');
 
   return (
-    <div className="aw-layout">
-      <Sidebar />
+    <div className="aw-layout" style={{ minHeight: 'calc(100vh - 80px)' }}>
 
       {/* Request list panel */}
       <RequestList
@@ -201,7 +218,7 @@ export default function ApprovalWorkflow() {
           </button>
         )}
         {detailLoading && <div className="aw-loader">Loading details…</div>}
-        {error && !detailLoading && <div className="aw-error">⚠ {error}</div>}
+        {error && !detailLoading && <div className="aw-error">{error}</div>}
 
         {!detailLoading && approval && (
           <>
@@ -210,9 +227,9 @@ export default function ApprovalWorkflow() {
               <div>
                 <h1 className="aw-page-title">Approval Workflow</h1>
                 <p className="aw-page-subtitle">
-                  RFQ: <strong>{approval.rfqTitle}</strong>
-                  &nbsp;·&nbsp; Vendor: <strong>{approval.vendor?.name}</strong>
-                  &nbsp;·&nbsp; <strong>Rs. {Number(approval.quotationAmount).toLocaleString('en-IN')}</strong>
+                  RFQ: <strong>{approval.snapshot?.rfqTitle || approval.rfqTitle}</strong>
+                  &nbsp;·&nbsp; Vendor: <strong>{approval.snapshot?.vendorName || approval.vendor?.name}</strong>
+                  &nbsp;·&nbsp; <strong>Rs. {Number(approval.snapshot?.totalAmount || approval.quotationAmount).toLocaleString('en-IN')}</strong>
                   &nbsp;&nbsp;
                   <span className={`aw-badge aw-badge--${approval.status?.toLowerCase()}`}>{approval.status}</span>
                 </p>
@@ -246,21 +263,21 @@ export default function ApprovalWorkflow() {
                 <div className="aw-card">
                   <h2 className="aw-card-title">Approval Chain</h2>
                   <div className="aw-chain">
-                    {approval.chain?.map((step, idx) => (
+                    {(approval.approvalChain || approval.chain)?.map((step, idx) => (
                       <div key={idx} className="aw-chain-item">
                         <div className="aw-chain-line">
-                          <div className={`aw-chain-dot aw-chain-dot--${step.status}`}>
-                            {step.status === 'approved' ? '✓' : step.status === 'rejected' ? '✗' : '⏰'}
+                          <div className={`aw-chain-dot aw-chain-dot--${step.status.toLowerCase()}`}>
+                            {step.status === 'Approved' ? '✓' : step.status === 'Rejected' ? '✗' : '⏰'}
                           </div>
-                          {idx < approval.chain.length - 1 && <div className="aw-chain-vline" />}
+                          {idx < (approval.approvalChain || approval.chain).length - 1 && <div className="aw-chain-vline" />}
                         </div>
                         <div className="aw-chain-info">
-                          <p className="aw-chain-name">{step.name}</p>
-                          <p className="aw-chain-role">{step.role}</p>
-                          <span className={`aw-chain-status aw-chain-status--${step.status}`}>
-                            {step.status === 'approved' && step.timestamp
-                              ? `Approved on ${new Date(step.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                              : step.status === 'rejected' ? 'Rejected'
+                          <p className="aw-chain-name">{step.approverName || step.name}</p>
+                          <p className="aw-chain-role">{step.label || step.role}</p>
+                          <span className={`aw-chain-status aw-chain-status--${step.status.toLowerCase()}`}>
+                            {step.status === 'Approved' && step.decidedAt
+                              ? `Approved on ${new Date(step.decidedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : step.status === 'Rejected' ? 'Rejected'
                               : 'Awaiting'}
                           </span>
                           {step.remarks && <p className="aw-chain-remarks">"{step.remarks}"</p>}
@@ -275,7 +292,7 @@ export default function ApprovalWorkflow() {
                   <h2 className="aw-card-title">
                     Approval Remarks
                     {activeChainStep && isActionable && (
-                      <span className="aw-approver-tag"> — Acting as: {activeChainStep.name}</span>
+                      <span className="aw-approver-tag"> — Acting as: L{activeChainStep.level} Approver</span>
                     )}
                   </h2>
                   <textarea
@@ -298,11 +315,11 @@ export default function ApprovalWorkflow() {
                   <div className="aw-summary">
                     <div className="aw-summary-row">
                       <span className="aw-summary-label">Vendor</span>
-                      <span className="aw-summary-value">{approval.vendor?.name}</span>
+                      <span className="aw-summary-value">{approval.snapshot?.vendorName || approval.vendor?.name}</span>
                     </div>
                     <div className="aw-summary-row">
                       <span className="aw-summary-label">RFQ</span>
-                      <span className="aw-summary-value">{approval.rfqTitle}</span>
+                      <span className="aw-summary-value">{approval.snapshot?.rfqTitle || approval.rfqTitle}</span>
                     </div>
                     <div className="aw-summary-row">
                       <span className="aw-summary-label">Category</span>

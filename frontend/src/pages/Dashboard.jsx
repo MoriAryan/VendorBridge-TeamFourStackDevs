@@ -81,7 +81,7 @@ export default function Dashboard() {
 
   if (error) return (
     <div className="db-main">
-      <div className="db-error">⚠ {error}
+      <div className="db-error">{error}
         <p style={{ fontSize: 13, marginTop: 10 }}>
           Seed the database: <a href={`${BASE}/api/v1/seed`} target="_blank" rel="noreferrer"><code>/api/v1/seed</code></a>
         </p>

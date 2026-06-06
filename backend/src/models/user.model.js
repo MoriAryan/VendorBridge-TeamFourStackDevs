@@ -25,7 +25,7 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "procurement_officer", "vendor", "approver"],
+      enum: ["admin", "procurement_officer", "vendor", "procurement_head", "finance_manager"],
       default: "procurement_officer",
       required: true,
     },
@@ -39,6 +39,10 @@ const userSchema = new Schema(
       trim: true,
     },
     gstNumber: {
+      type: String,
+      trim: true,
+    },
+    vendorCategory: {
       type: String,
       trim: true,
     },

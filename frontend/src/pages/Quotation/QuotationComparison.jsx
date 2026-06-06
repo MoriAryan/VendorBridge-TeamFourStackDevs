@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { compareQuotations, selectQuotation } from "../../api/quotation.api.js";
 import { createApproval } from "../../api/approval.api.js";
+import { getAllRFQs } from "../../api/rfq.api.js";
 
 // ── Helpers ────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -124,35 +125,6 @@ function VendorHeader({ q, isCheapest, isSelected, onSelect, selectLoading }) {
         )}
       </div>
 
-      {/* Total amount — big */}
-      <div style={{
-        padding: "12px", borderRadius: "var(--radius-inner)",
-        background: "var(--bg)", boxShadow: "var(--shadow-inset-sm)",
-        marginBottom: "14px",
-      }}>
-        <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          Grand Total
-        </div>
-        <div style={{
-          fontSize: "1.25rem", fontWeight: 800, color: "var(--fg)",
-          fontFamily: "var(--font-display)",
-          color: isCheapest && !isRejected ? "var(--accent-secondary)" : "var(--fg)",
-        }}>
-          {fmt(q.totalAmount)}
-        </div>
-        {q.taxPercent > 0 && (
-          <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: "2px" }}>
-            incl. {q.taxPercent}% tax
-          </div>
-        )}
-      </div>
-
-      {/* Meta chips */}
-      <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "4px" }}>
-        {q.deliveryDays != null && <span>🚚 {q.deliveryDays}d delivery</span>}
-        {q.paymentTerms && <span>💳 {q.paymentTerms.slice(0, 25)}{q.paymentTerms.length > 25 ? "…" : ""}</span>}
-      </div>
-
       {/* Select button */}
       {!isWinner && !isRejected && (
         <button
@@ -164,6 +136,84 @@ function VendorHeader({ q, isCheapest, isSelected, onSelect, selectLoading }) {
         >
           {selectLoading ? "..." : "🏆 Select"}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── RFQ Selector (When no rfqId is provided) ─────────────────────
+function RFQSelector({ onSelect }) {
+  const [rfqs, setRfqs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRfqs = async () => {
+      try {
+        // Fetch all RFQs to allow comparison for both Open and Closed
+        const res = await getAllRFQs({ status: "All" });
+        // Filter to those that might have quotations (e.g. Open or Closed)
+        const comparableRfqs = (res.data?.rfqs || []).filter(
+          (r) => r.status === "Open" || r.status === "Closed"
+        );
+        setRfqs(comparableRfqs);
+      } catch (err) {
+        console.error("Failed to load RFQs", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRfqs();
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: "60px", textAlign: "center", color: "var(--muted)" }}>Loading RFQs...</div>;
+  }
+
+  return (
+    <div style={{ maxWidth: "800px", margin: "40px auto", padding: "0 20px" }}>
+      <h2 style={{ fontSize: "1.5rem", marginBottom: "8px" }}>Select RFQ to Compare</h2>
+      <p style={{ color: "var(--muted)", marginBottom: "24px" }}>
+        Choose an active or closed RFQ below to view its side-by-side quotation comparison.
+      </p>
+
+      {rfqs.length === 0 ? (
+        <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
+          No RFQs available for comparison.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {rfqs.map((rfq) => (
+            <div
+              key={rfq._id}
+              className="card"
+              style={{
+                padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                cursor: "pointer", transition: "var(--transition)",
+              }}
+              onClick={() => onSelect(rfq._id)}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = ""; }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+                  <span style={{ fontWeight: 700, color: "var(--accent)" }}>{rfq.rfqNumber}</span>
+                  <span style={{
+                    fontSize: "0.75rem", padding: "2px 8px", borderRadius: "var(--radius-pill)",
+                    background: rfq.status === "Open" ? "rgba(56,178,172,0.12)" : "rgba(107,114,128,0.1)",
+                    color: rfq.status === "Open" ? "var(--accent-secondary)" : "var(--muted)",
+                  }}>
+                    {rfq.status}
+                  </span>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>{rfq.title}</div>
+                <div style={{ fontSize: "0.8125rem", color: "var(--muted)", marginTop: "4px" }}>
+                  {rfq.vendorCount} Vendors Assigned
+                </div>
+              </div>
+              <button className="btn btn-secondary">Compare →</button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -204,9 +254,16 @@ export default function QuotationComparison() {
   };
 
   useEffect(() => {
-    if (!rfqId) { navigate("/rfqs"); return; }
-    loadData();
+    if (rfqId) {
+      loadData();
+    }
   }, [rfqId]);
+
+  if (!rfqId) {
+    return (
+      <RFQSelector onSelect={(id) => navigate(`/quotations/compare?rfqId=${id}`)} />
+    );
+  }
 
   const handleSelectConfirm = async () => {
     setSelectLoading(true);
@@ -249,7 +306,7 @@ export default function QuotationComparison() {
   if (error) {
     return (
       <div className="card" style={{ padding: "48px", textAlign: "center", maxWidth: "480px", margin: "60px auto" }}>
-        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>⚠ {error}</p>
+        <p style={{ color: "var(--accent-danger)", marginBottom: "20px" }}>{error}</p>
         <button className="btn btn-primary" onClick={() => navigate("/rfqs")}>← Back to RFQs</button>
       </div>
     );
@@ -333,7 +390,7 @@ export default function QuotationComparison() {
           padding: "12px 16px", borderRadius: "var(--radius-inner)", marginBottom: "20px",
           background: "rgba(229,62,62,0.08)", color: "var(--accent-danger)", fontSize: "0.875rem",
         }}>
-          ⚠ {selectError}
+          {selectError}
         </div>
       )}
 
@@ -342,32 +399,13 @@ export default function QuotationComparison() {
         <h3 style={{ marginBottom: "20px", fontSize: "1rem" }}>📊 Side-by-Side Summary</h3>
         <div style={{
           display: "grid",
-          gridTemplateColumns: `200px ${summary.map(() => "1fr").join(" ")}`,
-          gap: "12px", alignItems: "start",
+          gridTemplateColumns: `200px ${summary.map(() => "minmax(200px, 1fr)").join(" ")}`,
+          gap: "12px", alignItems: "center",
         }}>
-          {/* Label column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", paddingTop: "72px" }}>
-            {[
-              { label: "Grand Total" },
-              { label: "Subtotal (ex-tax)" },
-              { label: "Tax Amount" },
-              { label: "Delivery (days)" },
-              { label: "Payment Terms" },
-              { label: "Valid Until" },
-            ].map(({ label }) => (
-              <div key={label} style={{
-                height: "44px", display: "flex", alignItems: "center",
-                fontSize: "0.8125rem", fontWeight: 600, color: "var(--muted)",
-              }}>
-                {label}
-              </div>
-            ))}
-          </div>
-
-          {/* Vendor columns */}
+          {/* Row 1: Headers */}
+          <div></div> {/* Empty top-left cell */}
           {summary.map((q) => (
-            <div key={q.quotationId} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {/* Header block */}
+            <div key={q.quotationId} style={{ alignSelf: "end" }}>
               <VendorHeader
                 q={q}
                 isCheapest={q.totalAmount === cheapestTotal && q.status !== "Rejected"}
@@ -375,38 +413,39 @@ export default function QuotationComparison() {
                 onSelect={setConfirmTarget}
                 selectLoading={selectLoading}
               />
-
-              {/* Data rows */}
-              {[
-                {
-                  value: fmt(q.totalAmount),
-                  highlight: q.totalAmount === cheapestTotal && q.status !== "Rejected",
-                  large: true,
-                },
-                { value: fmt(q.subtotal) },
-                { value: fmt(q.taxAmount) },
-                { value: q.deliveryDays != null ? `${q.deliveryDays} days` : "—" },
-                { value: q.paymentTerms || "—" },
-                { value: q.validUntil ? new Date(q.validUntil).toLocaleDateString("en-IN") : "—" },
-              ].map(({ value, highlight, large }, ri) => (
-                <div key={ri} style={{
-                  height: "44px",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-inner)",
-                  background: "var(--bg)",
-                  boxShadow: highlight ? "var(--shadow-inset)" : "var(--shadow-inset-sm)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: large ? "0.9375rem" : "0.8125rem",
-                  fontWeight: highlight ? 700 : 500,
-                  color: highlight ? "var(--accent-secondary)" : "var(--fg)",
-                  opacity: q.status === "Rejected" ? 0.5 : 1,
-                  transition: "var(--transition)",
-                }}>
-                  {value}
-                </div>
-              ))}
             </div>
           ))}
+
+          {/* Data Rows */}
+          {[
+            { label: "Grand Total", getValue: q => fmt(q.totalAmount), highlightCheck: true, large: true },
+            { label: "Subtotal (ex-tax)", getValue: q => fmt(q.subtotal) },
+            { label: "Tax Amount", getValue: q => fmt(q.taxAmount) },
+            { label: "Delivery (days)", getValue: q => q.deliveryDays != null ? `${q.deliveryDays} days` : "—" },
+            { label: "Payment Terms", getValue: q => q.paymentTerms || "—" },
+            { label: "Valid Until", getValue: q => q.validUntil ? new Date(q.validUntil).toLocaleDateString("en-IN") : "—" }
+          ].flatMap((rowDef, ri) => [
+            <div key={`label-${ri}`} style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--muted)" }}>
+              {rowDef.label}
+            </div>,
+            ...summary.map((q) => {
+              const highlight = rowDef.highlightCheck && q.totalAmount === cheapestTotal && q.status !== "Rejected";
+              return (
+                <div key={`${q.quotationId}-${ri}`} style={{
+                  height: "44px", padding: "8px 12px", borderRadius: "var(--radius-inner)",
+                  background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: highlight ? "var(--shadow-inset)" : "var(--shadow-inset-sm)",
+                  fontSize: rowDef.large ? "0.9375rem" : "0.8125rem",
+                  fontWeight: highlight ? 700 : 500,
+                  color: highlight ? "var(--accent-secondary)" : "var(--fg)",
+                  opacity: q.status === "Rejected" ? 0.5 : 1, transition: "var(--transition)",
+                  textAlign: "center"
+                }}>
+                  {rowDef.getValue(q)}
+                </div>
+              );
+            })
+          ])}
         </div>
       </div>
 

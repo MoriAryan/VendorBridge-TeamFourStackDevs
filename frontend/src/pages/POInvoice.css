@@ -32,42 +32,13 @@ body { background: var(--bg); font-family: var(--font-body); color: var(--fg); -
 .pi-layout { display: flex; min-height: 100vh; background: var(--bg); }
 .pi-main   { flex: 1; padding: 36px 40px; display: flex; flex-direction: column; gap: 28px; overflow-y: auto; position: relative; min-width: 0; }
 
-/* ── Invoice List Panel ─────────────────────────────────────────────────── */
-.pi-list-panel {
-  width: 272px; height: 100vh; position: sticky; top: 0;
-  overflow-y: auto; scrollbar-width: none; background: var(--bg);
-  padding: 24px 14px; display: flex; flex-direction: column; flex-shrink: 0;
-  border-right: 1px solid rgba(180,190,200,0.3);
-  transition: width var(--dur) var(--ease), padding var(--dur) var(--ease), overflow var(--dur) var(--ease);
-}
-.pi-list-panel::-webkit-scrollbar { display: none; }
-.pi-list-panel--hidden { width: 0; padding: 0; overflow: hidden; border: none; }
+/* ── Dashboard Grid ───────────────────────────────────────────────────────── */
+.pi-dashboard { width: 100%; max-width: 1200px; margin: 0 auto; }
+.pi-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+.pi-list-card { padding: 24px; cursor: pointer; transition: all var(--dur) var(--ease); }
+.pi-list-card:hover { transform: translateY(-4px); box-shadow: var(--sh-out-lg); }
+.pi-list-card:active { transform: translateY(0); box-shadow: var(--sh-in-sm); }
 
-.pi-list-header { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 18px; }
-.pi-list-title  { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--fg); }
-.pi-list-count  { background: var(--bg); box-shadow: var(--sh-in-sm); border-radius: var(--r-pill); padding: 3px 10px; font-size: 11px; font-weight: 700; color: var(--muted); }
-.pi-list-loading { padding: 20px 8px; font-size: 13px; color: var(--muted); text-align: center; }
-
-.pi-list-group { margin-bottom: 6px; }
-.pi-list-group-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; border: none; background: transparent; cursor: pointer; padding: 7px 10px; border-radius: var(--r-sm); transition: background var(--dur); }
-.pi-list-group-btn:hover { background: rgba(163,177,198,0.15); }
-.pi-list-group-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
-.pi-list-chevron { font-size: 18px; color: var(--muted); transition: transform var(--dur) var(--ease); transform: rotate(0deg); line-height: 1; }
-.pi-list-chevron--open { transform: rotate(90deg); }
-
-.pi-list-item { width: 100%; text-align: left; border: none; background: var(--bg); border-radius: var(--r-lg); padding: 13px 15px; cursor: pointer; margin-bottom: 7px; transition: all var(--dur) var(--ease); box-shadow: var(--sh-out-sm); }
-.pi-list-item:hover { box-shadow: var(--sh-out-md); transform: translateY(-1px); }
-.pi-list-item--active { box-shadow: var(--sh-in); transform: none; }
-.pi-list-item-top    { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.pi-list-item-po     { font-family: var(--font-head); font-size: 12px; font-weight: 700; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pi-list-item-badge  { flex-shrink: 0; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: var(--r-pill); text-transform: uppercase; letter-spacing: 0.5px; }
-.pi-list-item-vendor { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-.pi-list-item-amount { font-family: var(--font-head); font-size: 13px; font-weight: 700; color: var(--accent); }
-
-.pi-panel-toggle { width: 28px; height: 28px; border-radius: var(--r-sm); border: none; background: var(--bg); cursor: pointer; box-shadow: var(--sh-out-sm); font-size: 18px; color: var(--muted); display: flex; align-items: center; justify-content: center; transition: all var(--dur) var(--ease); flex-shrink: 0; padding: 0; }
-.pi-panel-toggle:hover { box-shadow: var(--sh-out-md); color: var(--accent); }
-.pi-panel-expand { position: absolute; left: 0; top: 36px; width: 28px; height: 56px; border-radius: 0 12px 12px 0; border: none; background: var(--bg); box-shadow: 6px 0 14px rgba(163,177,198,0.45); cursor: pointer; font-size: 20px; color: var(--accent); display: flex; align-items: center; justify-content: center; transition: all var(--dur) var(--ease); z-index: 10; }
-.pi-panel-expand:hover { width: 36px; }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .pi-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }

@@ -43,7 +43,7 @@ const generateAndSetTokens = async (user, res) => {
 // POST /api/v1/auth/register
 // =====================================================================
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role, companyName, gstNumber, phone, country } =
+  const { name, email, password, role, companyName, gstNumber, phone, country, vendorCategory } =
     req.body;
 
   // Validate required fields — early return pattern (AI_RULES.md Rule 4)
@@ -54,7 +54,7 @@ const register = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Password must be at least 6 characters");
 
   // Validate role
-  const allowedRoles = ["admin", "procurement_officer", "vendor", "approver"];
+  const allowedRoles = ["admin", "procurement_officer", "vendor", "procurement_head", "finance_manager"];
   const userRole = role && allowedRoles.includes(role) ? role : "procurement_officer";
 
   // Check duplicate email
@@ -73,6 +73,7 @@ const register = asyncHandler(async (req, res) => {
     gstNumber: gstNumber?.trim(),
     phone: phone?.trim(),
     country: country?.trim() || "India",
+    vendorCategory: vendorCategory?.trim(),
   });
 
   // Activity tracking (Rule 7)

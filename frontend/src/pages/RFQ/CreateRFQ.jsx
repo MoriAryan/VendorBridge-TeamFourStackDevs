@@ -158,7 +158,7 @@ function LineItemsTable({ lineItems, onChange }) {
 }
 
 // ── Vendor Selector Modal (Real API) ─────────────────────────────
-function VendorModal({ assigned, onClose, onAdd }) {
+function VendorModal({ assigned, onClose, onAdd, categoryFilter }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [allVendors, setAllVendors] = useState([]);
@@ -183,6 +183,7 @@ function VendorModal({ assigned, onClose, onAdd }) {
   const filtered = allVendors.filter(
     (v) =>
       !assigned.find((a) => String(a._id) === String(v._id)) &&
+      (!categoryFilter || v.vendorCategory === categoryFilter) &&
       (
         (v.companyName || v.name).toLowerCase().includes(search.toLowerCase()) ||
         (v.vendorCategory || "").toLowerCase().includes(search.toLowerCase())
@@ -212,7 +213,7 @@ function VendorModal({ assigned, onClose, onAdd }) {
         {loadingVendors ? (
           <p className="text-muted text-sm" style={{ textAlign: "center", padding: "24px" }}>Loading vendors...</p>
         ) : fetchError ? (
-          <p style={{ textAlign: "center", padding: "24px", color: "var(--accent-danger)", fontSize: "0.875rem" }}>⚠ {fetchError}</p>
+          <p style={{ textAlign: "center", padding: "24px", color: "var(--accent-danger)", fontSize: "0.875rem" }}>{fetchError}</p>
         ) : allVendors.length === 0 ? (
           <div style={{ textAlign: "center", padding: "24px" }}>
             <p className="text-muted text-sm" style={{ marginBottom: "12px" }}>No active vendors registered yet.</p>
@@ -311,6 +312,7 @@ function Step1({ form, onChange, errors }) {
           assigned={form.assignedVendors}
           onClose={() => setVendorModalOpen(false)}
           onAdd={handleAddVendor}
+          categoryFilter={form.category}
         />
       )}
 
@@ -671,7 +673,7 @@ function Step3({ submittedRFQ, sendToVendors }) {
           animation: "float 3s ease-in-out infinite",
         }}
       >
-        {sendToVendors ? "🚀" : "📝"}
+        {sendToVendors ? "" : ""}
       </div>
 
       <h2 style={{ marginBottom: "8px", color: "var(--fg)" }}>
@@ -850,7 +852,7 @@ export default function CreateRFQ() {
               boxShadow: "var(--shadow-inset-sm)",
             }}
           >
-            ⚠ {error}
+            {error}
           </div>
         )}
 
@@ -895,7 +897,7 @@ export default function CreateRFQ() {
                     disabled={loading}
                     id="rfq-send-to-vendors-btn"
                   >
-                    {loading ? "Sending..." : "🚀 Save & Send to Vendors"}
+                    {loading ? "Sending..." : "Save & Send to Vendors"}
                   </button>
                   <button
                     type="button"
@@ -904,7 +906,7 @@ export default function CreateRFQ() {
                     disabled={loading}
                     id="rfq-save-draft-btn"
                   >
-                    {loading ? "Saving..." : "📝 Save as Draft"}
+                    {loading ? "Saving..." : " Save as Draft"}
                   </button>
                 </div>
               )}
